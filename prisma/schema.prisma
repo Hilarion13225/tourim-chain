@@ -1,0 +1,600 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  TOURIST
+  GUIDE
+  ARTISAN
+  ORGANIZER
+  ACCOMMODATION_COMPANY
+  VEHICLE_RENTAL_COMPANY
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING_VERIFICATION
+  SUSPENDED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum CircuitStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum TicketStatus {
+  VALID
+  USED
+  CANCELLED
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  OUT_OF_STOCK
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum TourismCategory {
+  CULTURE
+  NATURE
+  BEACH
+  HERITAGE
+  RELIGIOUS
+  ADVENTURE
+  OTHER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum CertificationType {
+  GUIDE_CERTIFICATION
+  ARTISAN_AUTHENTICITY
+}
+
+enum CertificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum BlockchainEntityType {
+  EVENT_TICKET
+  ARTISAN_PRODUCT
+  DIGITAL_SOUVENIR
+  CERTIFICATION
+}
+
+model User {
+  id                        String             @id @default(cuid())
+  nom                       String
+  email                     String             @unique
+  passwordHash              String?
+  phone                     String?
+  pays                      String?
+  photo                     String?
+  role                      UserRole
+  status                    UserStatus         @default(PENDING_VERIFICATION)
+  verified                  Boolean            @default(false)
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  touristProfile            TouristProfile?
+  guideProfile              GuideProfile?
+  artisanProfile            ArtisanProfile?
+  organizerProfile          OrganizerProfile?
+  touristBookings           Booking[]          @relation("TouristBookings")
+  guideBookings             Booking[]          @relation("GuideBookings")
+  circuitsAsGuide           Circuit[]
+  organizedEvents           Event[]
+  eventOrders               EventOrder[]
+  artisanProducts           ArtisanProduct[]
+  marketplaceOrders         MarketplaceOrder[]
+  reviewsAuthored           Review[]
+  guideReviewsReceived      Review[]           @relation("GuideReviewTarget")
+  favorites                 FavoriteSite[]
+  certificationsIssued      Certification[]    @relation("CertificationIssuer")
+  certificationsAsGuide     Certification[]    @relation("GuideCertification")
+  certificationsAsArtisan   Certification[]    @relation("ArtisanCertification")
+  blockchainAssets          BlockchainAsset[]
+  ticketScans               TicketScan[]
+  adminActions              AdminAction[]
+  accommodationsOwned       AccommodationListing[]
+  vehiclesOwned             VehicleRentalListing[]
+}
+
+model TouristSite {
+  id                String           @id @default(cuid())
+  slug              String           @unique
+  nom               String
+  region            String
+  description       String
+  categorieTourisme TourismCategory
+  latitude          Decimal?         @db.Decimal(10, 7)
+  longitude         Decimal?         @db.Decimal(10, 7)
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  medias            SiteMedia[]
+  circuitStops      CircuitStop[]
+  reviews           Review[]
+  favoritedBy       FavoriteSite[]
+
+  @@index([region])
+  @@index([categorieTourisme])
+}
+
+model TouristProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  preferredRegion String?
+  preferredLang   String?
+  walletAddress   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GuideProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  bio                String?
+  region             String?
+  yearsExperience    Int      @default(0)
+  hourlyRate         Decimal? @db.Decimal(10, 2)
+  spokenLanguages    String[]
+  licenseNumber      String?  @unique
+  isCertified        Boolean  @default(false)
+  averageRating      Decimal? @db.Decimal(3, 2)
+  totalReviews       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availabilities     GuideAvailability[]
+}
+
+model ArtisanProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  bio                String?
+  workshopName       String?
+  speciality         String?
+  region             String?
+  isCertified        Boolean  @default(false)
+  averageRating      Decimal? @db.Decimal(3, 2)
+  totalReviews       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OrganizerProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  organizationName   String?
+  website            String?
+  region             String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AccommodationListing {
+  id                 String   @id @default(cuid())
+  ownerId            String
+  nom                String
+  photoUrl           String?
+  description        String?
+  ville              String
+  region             String
+  type               String
+  note               Decimal  @default(8.0) @db.Decimal(3, 1)
+  petitDejeuner      Boolean  @default(false)
+  prixParNuit        Decimal  @db.Decimal(10, 2)
+  capacite           Int      @default(1)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  owner              User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([region])
+  @@index([isActive])
+}
+
+model VehicleRentalListing {
+  id                 String   @id @default(cuid())
+  ownerId            String
+  nom                String
+  photoUrl           String?
+  description        String?
+  ville              String
+  type               String
+  transmission       String
+  prixParJour        Decimal  @db.Decimal(10, 2)
+  climatisation      Boolean  @default(false)
+  disponible         Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  owner              User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([ville])
+  @@index([disponible])
+}
+
+model GuideAvailability {
+  id              String   @id @default(cuid())
+  guideProfileId  String
+  date            DateTime
+  startAt         DateTime
+  endAt           DateTime
+  isAvailable     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  guideProfile    GuideProfile @relation(fields: [guideProfileId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+
+  @@index([guideProfileId, date])
+}
+
+model Circuit {
+  id                String         @id @default(cuid())
+  guideId           String
+  titre             String
+  description       String
+  region            String
+  prix              Decimal        @db.Decimal(10, 2)
+  dureeMinutes      Int
+  maxParticipants   Int
+  status            CircuitStatus  @default(DRAFT)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  guide             User           @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  stops             CircuitStop[]
+  bookings          Booking[]
+
+  @@index([guideId])
+  @@index([region])
+  @@index([status])
+}
+
+model CircuitStop {
+  id               String      @id @default(cuid())
+  circuitId        String
+  siteId           String
+  ordre            Int
+  stayMinutes      Int?
+  circuit          Circuit     @relation(fields: [circuitId], references: [id], onDelete: Cascade)
+  site             TouristSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([circuitId, ordre])
+  @@index([siteId])
+}
+
+model Booking {
+  id                  String             @id @default(cuid())
+  touristId           String
+  guideId             String
+  circuitId           String?
+  availabilityId      String?
+  date                DateTime
+  participants        Int                @default(1)
+  totalAmount         Decimal            @db.Decimal(10, 2)
+  statut              BookingStatus      @default(PENDING)
+  paymentStatus       PaymentStatus      @default(UNPAID)
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  tourist             User               @relation("TouristBookings", fields: [touristId], references: [id], onDelete: Cascade)
+  guide               User               @relation("GuideBookings", fields: [guideId], references: [id], onDelete: Cascade)
+  circuit             Circuit?           @relation(fields: [circuitId], references: [id], onDelete: SetNull)
+  availability        GuideAvailability? @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
+  reviews             Review[]
+
+  @@index([touristId])
+  @@index([guideId])
+  @@index([date])
+}
+
+model Event {
+  id                  String          @id @default(cuid())
+  organisateurId      String
+  nom                 String
+  description         String
+  lieu                String
+  region              String
+  startAt             DateTime
+  endAt               DateTime
+  capacity            Int
+  status              EventStatus     @default(DRAFT)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  organisateur        User            @relation(fields: [organisateurId], references: [id], onDelete: Cascade)
+  ticketTypes         EventTicketType[]
+  orders              EventOrder[]
+  reviews             Review[]
+
+  @@index([organisateurId])
+  @@index([startAt])
+  @@index([status])
+}
+
+model EventTicketType {
+  id                  String         @id @default(cuid())
+  eventId             String
+  nom                 String
+  prix                Decimal        @db.Decimal(10, 2)
+  quantityTotal       Int
+  quantitySold        Int            @default(0)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  event               Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets             EventTicket[]
+
+  @@index([eventId])
+}
+
+model EventOrder {
+  id                  String         @id @default(cuid())
+  eventId             String
+  touristId           String
+  totalAmount         Decimal        @db.Decimal(10, 2)
+  status              PaymentStatus  @default(UNPAID)
+  paymentReference    String?
+  orderedAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  event               Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tourist             User           @relation(fields: [touristId], references: [id], onDelete: Cascade)
+  tickets             EventTicket[]
+
+  @@index([eventId])
+  @@index([touristId])
+}
+
+model EventTicket {
+  id                  String          @id @default(cuid())
+  orderId             String
+  ticketTypeId        String
+  qrCode              String          @unique
+  status              TicketStatus    @default(VALID)
+  usedAt              DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  order               EventOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketType          EventTicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+  scans               TicketScan[]
+  blockchainAsset     BlockchainAsset?
+
+  @@index([orderId])
+  @@index([ticketTypeId])
+}
+
+model TicketScan {
+  id                  String      @id @default(cuid())
+  ticketId            String
+  scannerId           String
+  scannedAt           DateTime    @default(now())
+  isValid             Boolean
+  message             String?
+  ticket              EventTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  scanner             User        @relation(fields: [scannerId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([scannerId])
+}
+
+model ArtisanProduct {
+  id                    String           @id @default(cuid())
+  artisanId             String
+  nom                   String
+  description           String
+  categorie             String
+  regionOrigine         String?
+  prix                  Decimal          @db.Decimal(10, 2)
+  stock                 Int              @default(0)
+  status                ProductStatus    @default(DRAFT)
+  certificatBlockchain  String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  artisan               User             @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  medias                ProductMedia[]
+  orderItems            MarketplaceOrderItem[]
+  reviews               Review[]
+  blockchainAssets      BlockchainAsset[]
+
+  @@index([artisanId])
+  @@index([status])
+}
+
+model ProductMedia {
+  id                  String        @id @default(cuid())
+  productId           String
+  url                 String
+  type                MediaType     @default(IMAGE)
+  createdAt           DateTime      @default(now())
+  product             ArtisanProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model MarketplaceOrder {
+  id                  String               @id @default(cuid())
+  touristId           String
+  totalAmount         Decimal              @db.Decimal(10, 2)
+  status              OrderStatus          @default(PENDING)
+  paymentStatus       PaymentStatus        @default(UNPAID)
+  paymentReference    String?
+  shippingAddress     String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  tourist             User                 @relation(fields: [touristId], references: [id], onDelete: Cascade)
+  items               MarketplaceOrderItem[]
+
+  @@index([touristId])
+  @@index([status])
+}
+
+model MarketplaceOrderItem {
+  id                  String           @id @default(cuid())
+  orderId             String
+  productId           String
+  quantity            Int
+  unitPrice           Decimal          @db.Decimal(10, 2)
+  createdAt           DateTime         @default(now())
+  order               MarketplaceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product             ArtisanProduct   @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Review {
+  id                  String          @id @default(cuid())
+  authorId            String
+  bookingId           String?
+  guideId             String?
+  siteId              String?
+  eventId             String?
+  productId           String?
+  note                Int
+  commentaire         String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  author              User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  booking             Booking?        @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  guide               User?           @relation("GuideReviewTarget", fields: [guideId], references: [id], onDelete: SetNull)
+  site                TouristSite?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  event               Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  product             ArtisanProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([authorId])
+  @@index([guideId])
+  @@index([siteId])
+  @@index([eventId])
+  @@index([productId])
+}
+
+model FavoriteSite {
+  id                  String      @id @default(cuid())
+  touristId           String
+  siteId              String
+  createdAt           DateTime    @default(now())
+  tourist             User        @relation(fields: [touristId], references: [id], onDelete: Cascade)
+  site                TouristSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([touristId, siteId])
+  @@index([siteId])
+}
+
+model Certification {
+  id                  String              @id @default(cuid())
+  type                CertificationType
+  status              CertificationStatus @default(PENDING)
+  issuedByAdminId     String?
+  guideId             String?
+  artisanId           String?
+  note                String?
+  blockchainHash      String?
+  issuedAt            DateTime?
+  expiresAt           DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  issuedByAdmin       User?               @relation("CertificationIssuer", fields: [issuedByAdminId], references: [id], onDelete: SetNull)
+  guide               User?               @relation("GuideCertification", fields: [guideId], references: [id], onDelete: SetNull)
+  artisan             User?               @relation("ArtisanCertification", fields: [artisanId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([guideId])
+  @@index([artisanId])
+}
+
+model BlockchainAsset {
+  id                  String               @id @default(cuid())
+  ownerId             String
+  eventTicketId       String?              @unique
+  productId           String?
+  entityType          BlockchainEntityType
+  wallet              String
+  hashTransaction     String               @unique
+  qrCode              String?              @unique
+  metadataUrl         String?
+  mintedAt            DateTime             @default(now())
+  owner               User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  eventTicket         EventTicket?         @relation(fields: [eventTicketId], references: [id], onDelete: SetNull)
+  product             ArtisanProduct?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+  @@index([wallet])
+  @@index([entityType])
+}
+
+model SiteMedia {
+  id                  String      @id @default(cuid())
+  siteId              String
+  url                 String
+  type                MediaType   @default(IMAGE)
+  createdAt           DateTime    @default(now())
+  site                TouristSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+}
+
+model AdminAction {
+  id                  String      @id @default(cuid())
+  adminId             String
+  action              String
+  targetType          String
+  targetId            String
+  metadata            Json?
+  createdAt           DateTime    @default(now())
+  admin               User        @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+}

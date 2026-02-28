@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TourismChain CI
 
-## Getting Started
+Plateforme digitale pour centraliser le tourisme ivoirien, sécuriser l'expérience via blockchain, valoriser les acteurs culturels et générer des données décisionnelles.
 
-First, run the development server:
+## Phase 0 — Vision Produit
+
+### Objectifs
+
+- Centraliser l'offre touristique ivoirienne (sites, circuits, événements, artisanat)
+- Sécuriser les interactions sensibles (tickets, certifications, traçabilité) via blockchain
+- Valoriser les acteurs locaux (guides, artisans, organisateurs)
+- Produire des indicateurs exploitables pour les décideurs publics/privés
+
+### Acteurs
+
+- Touriste
+- Guide touristique
+- Artisan
+- Organisateur d'événement
+- Administrateur
+
+## Phase 1 — User Stories Complètes
+
+### Touriste
+
+- En tant que touriste, je peux créer un compte pour accéder aux services personnalisés.
+- En tant que touriste, je peux découvrir des sites touristiques par région et catégorie.
+- En tant que touriste, je peux réserver une visite avec un guide certifié.
+- En tant que touriste, je peux acheter un billet pour un événement culturel.
+- En tant que touriste, je peux scanner un QR code blockchain pour vérifier l'authenticité d'un billet.
+- En tant que touriste, je peux noter et commenter mon expérience.
+- En tant que touriste, je peux consulter mes souvenirs digitaux (NFT/certificats).
+
+### Guide touristique
+
+- En tant que guide, je peux créer un profil professionnel certifié.
+- En tant que guide, je peux proposer des circuits avec prix, durée et capacité.
+- En tant que guide, je peux gérer mes disponibilités.
+- En tant que guide, je peux recevoir et traiter les réservations.
+- En tant que guide, je peux être noté par les touristes pour renforcer ma crédibilité.
+
+### Artisan
+
+- En tant qu'artisan, je peux publier mes produits culturels.
+- En tant qu'artisan, je peux vendre des souvenirs aux touristes.
+- En tant qu'artisan, je peux associer une preuve d'authenticité blockchain à mes produits.
+- En tant qu'artisan, je peux suivre mes ventes et performances.
+
+### Organisateur d'événement
+
+- En tant qu'organisateur, je peux créer un événement (lieu, date, capacité, prix).
+- En tant qu'organisateur, je peux vendre des billets en ligne.
+- En tant qu'organisateur, je peux contrôler l'accès via QR code.
+- En tant qu'organisateur, je peux consulter les statistiques de fréquentation.
+
+### Administrateur
+
+- En tant qu'administrateur, je peux valider les comptes des acteurs.
+- En tant qu'administrateur, je peux certifier les guides et artisans.
+- En tant qu'administrateur, je peux modérer les contenus publiés.
+- En tant qu'administrateur, je peux suivre des analytics nationaux du tourisme.
+
+## Phase 2 — Architecture
+
+- Frontend: Next.js (App Router)
+- Backend: API Routes (Node.js)
+- Base de données: PostgreSQL via Prisma
+- Blockchain: Smart contract + preuve de transaction
+- Storage média: Cloudinary
+- Authentification: JWT / NextAuth
+- Analytics: Dashboard décisionnel
+
+## Phase 3 — Modules Système
+
+- Authentification
+- Profils acteurs
+- Tourism Explorer
+- Réservations
+- Marketplace artisanale
+- Gestion événements
+- Certification blockchain
+- Data analytics
+
+## Phase 4 — Modélisation BDD
+
+Le modèle de données V1 est défini dans `prisma/schema.prisma` avec les entités clés:
+
+- `User`
+- `TouristSite`
+- `Booking`
+- `Event`
+- `ArtisanProduct`
+- `Review`
+- `BlockchainTicket`
+
+## Phase 5 — Setup Projet
+
+Le projet est déjà initialisé avec la stack de base:
+
+- Next.js
+- Prisma + PostgreSQL client
+- Zustand
+- Axios
+- NextAuth
+- Ant Design
+
+### Démarrage local
+
+1. Installer les dépendances
+
+```bash
+npm install
+```
+
+1. Configurer la base PostgreSQL dans `.env`:
+
+```bash
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME?schema=public"
+```
+
+1. Créer la migration initiale:
+
+```bash
+npx prisma migrate dev --name init_tourismchain
+```
+
+1. Lancer l'application:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Prochaine étape recommandée
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Implémenter les API Routes par module dans cet ordre:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Authentification & rôles
+2. Explorer des sites
+3. Réservations guides
+4. Événements & billetterie QR
+5. Marketplace artisanale
+6. Reviews & analytics

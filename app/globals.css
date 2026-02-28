@@ -1,8 +1,15 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f9ff;
+  --foreground: #10203f;
+  --surface: #ffffff;
+  --surface-muted: #eef3ff;
+  --line: #dbe6ff;
+  --primary: #2f6bff;
+  --primary-strong: #1a4ed8;
+  --accent: #00b3a4;
+  --accent-soft: #7a5cff;
 }
 
 @theme inline {
@@ -14,13 +21,100 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #081126;
+    --foreground: #eaf0ff;
+    --surface: #0f1b38;
+    --surface-muted: #14244a;
+    --line: #1f376f;
+    --primary: #6f95ff;
+    --primary-strong: #8daaff;
+    --accent: #2dd4bf;
+    --accent-soft: #9e8eff;
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 0% 0%, rgb(122 92 255 / 14%), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgb(47 107 255 / 16%), transparent 46%),
+    radial-gradient(circle at 50% 100%, rgb(0 179 164 / 12%), transparent 42%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  a {
+    transition:
+      color 160ms ease,
+      opacity 160ms ease;
+  }
+
+  a:hover {
+    color: var(--primary);
+  }
+
+  section,
+  article,
+  aside {
+    border-color: var(--line);
+  }
+
+  input,
+  select,
+  textarea {
+    border: 1px solid var(--line);
+    background: color-mix(in oklab, var(--surface) 88%, white 12%);
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgb(47 107 255 / 18%);
+    outline: none;
+  }
+
+  button {
+    transition:
+      transform 140ms ease,
+      opacity 140ms ease,
+      box-shadow 180ms ease,
+      background-color 180ms ease,
+      color 180ms ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@layer components {
+  .tc-surface {
+    background: color-mix(in oklab, var(--surface) 90%, white 10%);
+    border: 1px solid var(--line);
+    box-shadow: 0 14px 34px rgb(16 32 63 / 10%);
+  }
+
+  .tc-cta {
+    background: linear-gradient(
+      135deg,
+      var(--primary) 0%,
+      var(--accent-soft) 52%,
+      var(--accent) 100%
+    );
+    color: #ffffff;
+    box-shadow: 0 10px 22px rgb(47 107 255 / 25%);
+  }
+
+  .tc-cta:hover {
+    opacity: 0.95;
+  }
 }
