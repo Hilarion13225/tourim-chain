@@ -11,6 +11,56 @@ function canManage(role: string) {
   return role === 'ACCOMMODATION_COMPANY' || role === 'ADMIN';
 }
 
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await context.params;
+    const token = request.cookies.get('auth_token')?.value;
+
+    const listing = await prisma.accommodationListing.findUnique({
+      where: { id },
+    });
+
+    if (!listing) {
+      return NextResponse.json(
+        { error: 'hébergement introuvable' },
+        { status: 404 },
+      );
+    }
+
+    if (listing.isActive) {
+      return NextResponse.json(listing);
+    }
+
+    if (!token) {
+      return NextResponse.json(
+        { error: 'hébergement introuvable' },
+        { status: 404 },
+      );
+    }
+
+    const auth = verifyAccessToken(token);
+
+    if (!auth) {
+      return NextResponse.json({ error: 'token invalide' }, { status: 401 });
+    }
+
+    if (auth.role === 'ADMIN' || auth.userId === listing.ownerId) {
+      return NextResponse.json(listing);
+    }
+
+    return NextResponse.json(
+      { error: 'hébergement introuvable' },
+      { status: 404 },
+    );
+  } catch (error) {
+    console.error('GET /api/accommodations/[id]', error);
+    return NextResponse.json({ error: 'erreur serveur' }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },

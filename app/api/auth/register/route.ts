@@ -18,21 +18,24 @@ function isValidUserRole(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nom, email, password, role } = body as {
+    const { nom, email, password, phone, role } = body as {
       nom?: string;
       email?: string;
       password?: string;
+      phone?: string;
       role?: string;
     };
 
-    if (!nom || !email || !password || !role) {
+    const normalizedRole = role?.trim().toUpperCase();
+
+    if (!nom || !email || !password || !normalizedRole) {
       return NextResponse.json(
         { error: 'nom, email, password et role sont requis' },
         { status: 400 },
       );
     }
 
-    if (!isValidUserRole(role)) {
+    if (!isValidUserRole(normalizedRole)) {
       return NextResponse.json({ error: 'role invalide' }, { status: 400 });
     }
 
@@ -52,23 +55,24 @@ export async function POST(request: NextRequest) {
           nom,
           email,
           passwordHash,
-          role,
+          phone,
+          role: normalizedRole,
         },
       });
 
-      if (role === UserRole.TOURIST) {
+      if (normalizedRole === UserRole.TOURIST) {
         await trx.touristProfile.create({ data: { userId: user.id } });
       }
 
-      if (role === UserRole.GUIDE) {
+      if (normalizedRole === UserRole.GUIDE) {
         await trx.guideProfile.create({ data: { userId: user.id } });
       }
 
-      if (role === UserRole.ARTISAN) {
+      if (normalizedRole === UserRole.ARTISAN) {
         await trx.artisanProfile.create({ data: { userId: user.id } });
       }
 
-      if (role === UserRole.ORGANIZER) {
+      if (normalizedRole === UserRole.ORGANIZER) {
         await trx.organizerProfile.create({ data: { userId: user.id } });
       }
 
@@ -108,6 +112,33 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('POST /api/auth/register', error);
+
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: string }).code === 'P2002'
+    ) {
+      return NextResponse.json(
+        { error: 'email déjà utilisé' },
+        { status: 409 },
+      );
+    }
+
+    if (
+      error &&
+      typeof error === 'object' &&
+      'message' in error &&
+      String((error as { message?: string }).message).includes(
+        'Invalid value for argument `role`',
+      )
+    ) {
+      return NextResponse.json(
+        { error: 'rôle non reconnu par la base, relance prisma generate' },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json({ error: 'erreur serveur' }, { status: 500 });
   }
 }

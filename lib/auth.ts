@@ -68,6 +68,10 @@ export function getDashboardPathByRole(role: string) {
     return '/dashboard/location-vehicule';
   }
 
+  if (role === 'RESTAURANT') {
+    return '/dashboard/restaurant';
+  }
+
   if (role === 'ADMIN') {
     return '/dashboard/admin';
   }

@@ -90,9 +90,9 @@ export default function HomeChatbot() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className="fixed right-3 bottom-3 z-50 sm:right-5 sm:bottom-5">
       {isOpen ? (
-        <section className="w-[340px] rounded-2xl border border-black/10 bg-white shadow-2xl dark:border-white/15 dark:bg-zinc-900">
+        <section className="w-[min(92vw,340px)] rounded-2xl border border-black/10 bg-white shadow-2xl dark:border-white/15 dark:bg-zinc-900">
           <header className="flex items-center justify-between rounded-t-2xl bg-orange-500 px-4 py-3 text-white">
             <div>
               <p className="text-sm font-semibold">Assistant Tourisme CI</p>

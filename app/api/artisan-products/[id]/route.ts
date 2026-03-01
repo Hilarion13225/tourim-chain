@@ -26,6 +26,7 @@ export async function GET(
             email: true,
           },
         },
+        medias: true,
       },
     });
 
@@ -50,16 +51,29 @@ export async function PATCH(
   try {
     const { id } = await context.params;
     const body = await request.json();
-    const { nom, description, categorie, regionOrigine, prix, stock, status } =
-      body as {
-        nom?: string;
-        description?: string;
-        categorie?: string;
-        regionOrigine?: string | null;
-        prix?: number;
-        stock?: number;
-        status?: string;
-      };
+    const {
+      nom,
+      description,
+      categorie,
+      culture,
+      regionOrigine,
+      imageUrl,
+      prix,
+      stock,
+      status,
+    } = body as {
+      nom?: string;
+      description?: string;
+      categorie?: string;
+      culture?: string;
+      regionOrigine?: string | null;
+      imageUrl?: string;
+      prix?: number;
+      stock?: number;
+      status?: string;
+    };
+
+    const resolvedCategory = categorie ?? culture;
 
     if (status && !isValidProductStatus(status)) {
       return NextResponse.json({ error: 'status invalide' }, { status: 400 });
@@ -73,7 +87,7 @@ export async function PATCH(
       data: {
         ...(nom ? { nom } : {}),
         ...(description ? { description } : {}),
-        ...(categorie ? { categorie } : {}),
+        ...(resolvedCategory ? { categorie: resolvedCategory } : {}),
         ...(regionOrigine !== undefined ? { regionOrigine } : {}),
         ...(prix !== undefined ? { prix } : {}),
         ...(stock !== undefined ? { stock } : {}),
@@ -81,7 +95,42 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(product);
+    if (imageUrl !== undefined) {
+      const existingImage = await prisma.productMedia.findFirst({
+        where: { productId: id, type: 'IMAGE' },
+        select: { id: true },
+      });
+
+      if (existingImage) {
+        await prisma.productMedia.update({
+          where: { id: existingImage.id },
+          data: { url: imageUrl },
+        });
+      } else {
+        await prisma.productMedia.create({
+          data: {
+            productId: id,
+            url: imageUrl,
+            type: 'IMAGE',
+          },
+        });
+      }
+    }
+    const updated = await prisma.artisanProduct.findUnique({
+      where: { id: product.id },
+      include: {
+        artisan: {
+          select: {
+            id: true,
+            nom: true,
+            email: true,
+          },
+        },
+        medias: true,
+      },
+    });
+
+    return NextResponse.json(updated ?? product);
   } catch (error) {
     console.error('PATCH /api/artisan-products/[id]', error);
     return NextResponse.json({ error: 'erreur serveur' }, { status: 500 });

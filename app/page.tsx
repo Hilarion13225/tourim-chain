@@ -2,95 +2,206 @@ import Link from 'next/link';
 import Image from 'next/image';
 import HomeMarketSections from '@/app/_components/home-market-sections';
 import HomeChatbot from '@/app/_components/home-chatbot';
+import { prisma } from '@/lib/prisma';
 
-export default function Home() {
-  const destinations = [
-    {
-      name: 'Bassam Patrimoine',
-      region: 'Sud-Comoé, Côte d’Ivoire',
-      rating: '4.8',
-      type: 'Culture & Histoire',
-      price: 'À partir de 35 000 FCFA',
-      ambiance: 'Ville côtière classée UNESCO',
-      image: '/envies/culturel.svg',
-      href: '/#explorer',
-    },
-    {
-      name: 'Parc de la Comoé',
-      region: 'Nord-Est, Côte d’Ivoire',
-      rating: '4.7',
-      type: 'Nature & Safari',
-      price: 'À partir de 52 000 FCFA',
-      ambiance: 'Biodiversité exceptionnelle',
-      image: '/envies/ecologique.svg',
-      href: '/#explorer',
-    },
-    {
-      name: 'Assinie Évasion',
-      region: 'Lagunes, Côte d’Ivoire',
-      rating: '4.9',
-      type: 'Plage & Détente',
-      price: 'À partir de 48 000 FCFA',
-      ambiance: 'Lagune et océan en une journée',
-      image: '/envies/balneaire.svg',
-      href: '/#explorer',
-    },
-    {
-      name: 'Yamoussoukro Sacré',
-      region: 'District autonome',
-      rating: '4.6',
-      type: 'Spiritualité & Architecture',
-      price: 'À partir de 28 000 FCFA',
-      ambiance: 'Patrimoine monumental et culturel',
-      image: '/envies/sportif.svg',
-      href: '/#explorer',
-    },
-  ];
+function formatCompact(value: number) {
+  return new Intl.NumberFormat('fr-FR', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function parseTourismMeta(description: string) {
+  if (!description.startsWith('__TOURISM_META__')) {
+    return {
+      summary: description,
+      priceXof: null as number | null,
+    };
+  }
+
+  const firstLineBreak = description.indexOf('\n');
+  const metaLine =
+    firstLineBreak >= 0 ? description.slice(0, firstLineBreak) : description;
+  const rawJson = metaLine.replace('__TOURISM_META__', '');
+  const summary =
+    firstLineBreak >= 0 ? description.slice(firstLineBreak + 1) : '';
+
+  try {
+    const parsed = JSON.parse(rawJson) as {
+      priceXof?: number;
+    };
+
+    return {
+      summary,
+      priceXof: Number(parsed.priceXof ?? 0),
+    };
+  } catch {
+    return {
+      summary,
+      priceXof: null as number | null,
+    };
+  }
+}
+
+function tourismCategoryLabel(category: string) {
+  switch (category) {
+    case 'CULTURE':
+      return 'Culture & Histoire';
+    case 'NATURE':
+      return 'Nature & Safari';
+    case 'BEACH':
+      return 'Plage & Détente';
+    case 'HERITAGE':
+      return 'Patrimoine';
+    case 'RELIGIOUS':
+      return 'Spiritualité';
+    case 'ADVENTURE':
+      return 'Aventure';
+    default:
+      return 'Découverte locale';
+  }
+}
+
+function fallbackImageForCategory(category: string) {
+  switch (category) {
+    case 'CULTURE':
+    case 'HERITAGE':
+    case 'RELIGIOUS':
+      return '/envies/culturel.svg';
+    case 'NATURE':
+    case 'ADVENTURE':
+      return '/envies/ecologique.svg';
+    case 'BEACH':
+      return '/envies/balneaire.svg';
+    default:
+      return '/envies/sportif.svg';
+  }
+}
+
+export default async function Home() {
+  const [
+    topSites,
+    latestReviews,
+    totalVerifiedUsers,
+    totalBookings,
+    totalArtisanProducts,
+    totalRestaurantDishes,
+    totalPublishedEvents,
+    totalUpcomingSportEvents,
+  ] = await Promise.all([
+    prisma.touristSite.findMany({
+      where: { isActive: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 4,
+      select: {
+        id: true,
+        nom: true,
+        region: true,
+        description: true,
+        categorieTourisme: true,
+        medias: {
+          take: 1,
+          where: { type: 'IMAGE' },
+          select: { url: true },
+        },
+        reviews: {
+          select: { note: true },
+          take: 30,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    }),
+    prisma.review.findMany({
+      take: 3,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        note: true,
+        commentaire: true,
+        author: {
+          select: { nom: true },
+        },
+      },
+    }),
+    prisma.user.count({ where: { verified: true } }),
+    prisma.booking.count(),
+    prisma.artisanProduct.count(),
+    prisma.restaurantDish.count(),
+    prisma.event.count(),
+    prisma.event.count({ where: { startAt: { gte: new Date() } } }),
+  ]);
+
+  const allRecentNotes = latestReviews.map((review) => review.note);
+  const averageReviewScore =
+    allRecentNotes.length > 0
+      ? allRecentNotes.reduce((sum, note) => sum + note, 0) /
+        allRecentNotes.length
+      : 0;
+
+  const satisfactionRate = Math.min(
+    100,
+    Math.max(0, (averageReviewScore / 10) * 100),
+  );
+
+  const totalOffers =
+    topSites.length +
+    totalPublishedEvents +
+    totalArtisanProducts +
+    totalRestaurantDishes;
+
+  const destinations = topSites.map((site) => {
+    const meta = parseTourismMeta(site.description);
+    const avgRating =
+      site.reviews.length > 0
+        ? site.reviews.reduce((sum, review) => sum + review.note, 0) /
+          site.reviews.length
+        : 0;
+
+    return {
+      name: site.nom,
+      region: `${site.region}, Côte d’Ivoire`,
+      rating: avgRating > 0 ? avgRating.toFixed(1) : 'N/A',
+      type: tourismCategoryLabel(site.categorieTourisme),
+      price:
+        meta.priceXof && meta.priceXof > 0
+          ? `À partir de ${new Intl.NumberFormat('fr-FR').format(meta.priceXof)} FCFA`
+          : 'Tarif à consulter',
+      ambiance: meta.summary || 'Découverte locale',
+      image:
+        site.medias[0]?.url || fallbackImageForCategory(site.categorieTourisme),
+      href: `/tourisme/${site.id}`,
+    };
+  });
 
   const experiences = [
     {
-      title: 'Circuit avec guide certifié',
-      description:
-        'Réservez des guides vérifiés avec disponibilité en temps réel.',
+      title: 'Tourisme local',
+      description: `${formatCompact(topSites.length)} destination(s) touristique(s) active(s).`,
       icon: '🧭',
     },
     {
-      title: 'Billets événement QR',
-      description:
-        'Achetez, scannez et contrôlez les accès de façon sécurisée.',
-      icon: '🎟️',
+      title: 'Réservations',
+      description: `${formatCompact(totalBookings)} réservation(s) enregistrée(s) sur la plateforme.`,
+      icon: '📅',
     },
     {
-      title: 'Marketplace artisanale',
-      description:
-        'Commandez des créations locales avec preuve d’authenticité.',
+      title: 'Article & artisanat',
+      description: `${formatCompact(totalArtisanProducts)} article(s) souvenir référencé(s).`,
       icon: '🎨',
     },
     {
-      title: 'Souvenirs digitaux',
-      description:
-        'Conservez vos expériences sous forme de collectibles vérifiables.',
-      icon: '🪙',
+      title: 'Restauration & sport',
+      description: `${formatCompact(totalRestaurantDishes)} plat(s) + ${formatCompact(totalUpcomingSportEvents)} événement(s) sportif(s) à venir.`,
+      icon: '🏟️',
     },
   ];
 
-  const reviews = [
-    {
-      author: 'Aïcha K.',
-      text: 'Interface claire, réservation rapide et expérience guide exceptionnelle.',
-      score: '5.0',
-    },
-    {
-      author: 'Moussa T.',
-      text: 'J’ai acheté mon billet festival en 2 minutes, scan à l’entrée parfait.',
-      score: '4.9',
-    },
-    {
-      author: 'Elena R.',
-      text: 'Très bonne découverte culturelle et artisans incroyables.',
-      score: '4.8',
-    },
-  ];
+  const reviews = latestReviews.map((review) => ({
+    id: review.id,
+    author: review.author.nom,
+    text: review.commentaire,
+    score: `${review.note.toFixed(1)}`,
+  }));
 
   const prioritesTouriste = [
     {
@@ -159,25 +270,33 @@ export default function Home() {
     {
       title: 'Balnéaire',
       subtitle: 'Plages & détente',
-      tag: 'CI Assinie',
+      tag: `${formatCompact(
+        topSites.filter((site) => site.categorieTourisme === 'BEACH').length,
+      )} site(s)`,
       image: '/envies/balneaire.svg',
-      href: '/sejours?type=BALNEAIRE',
+      href: '/tourisme',
       colSpan: 'md:col-span-2',
     },
     {
       title: 'Culturel',
       subtitle: 'Histoire & arts',
-      tag: 'CI Grand-Bassam',
+      tag: `${formatCompact(
+        topSites.filter((site) =>
+          ['CULTURE', 'HERITAGE', 'RELIGIOUS'].includes(
+            site.categorieTourisme,
+          ),
+        ).length,
+      )} site(s)`,
       image: '/envies/culturel.svg',
-      href: '/sejours?type=CULTUREL',
+      href: '/tourisme',
       colSpan: 'md:col-span-2',
     },
     {
       title: 'Sportif',
       subtitle: 'Aventure & énergie',
-      tag: 'CI Abidjan',
+      tag: `${formatCompact(totalUpcomingSportEvents)} événement(s)`,
       image: '/envies/sportif.svg',
-      href: '/sejours?type=URBAIN_EVENT',
+      href: '/sport',
       colSpan: 'md:col-span-1',
     },
     {
@@ -185,15 +304,15 @@ export default function Home() {
       subtitle: 'Nature & forêts',
       tag: 'Taï National Park',
       image: '/envies/ecologique.svg',
-      href: '/sejours?type=ECOTOURISME',
+      href: '/tourisme',
       colSpan: 'md:col-span-1',
     },
     {
       title: 'Gastronomie',
       subtitle: 'Saveurs ivoiriennes',
-      tag: 'CI Plateau',
+      tag: `${formatCompact(totalRestaurantDishes)} plat(s)`,
       image: '/envies/gastronomie.svg',
-      href: '/sejours?type=CULTUREL',
+      href: '/restauration',
       colSpan: 'md:col-span-2',
     },
   ];
@@ -238,7 +357,7 @@ export default function Home() {
                 placeholder="Voyageurs"
               />
               <Link
-                href="/sejours"
+                href="/tourisme"
                 className="flex h-14 items-center justify-center rounded-2xl bg-orange-500 px-6 text-lg font-semibold text-white hover:bg-orange-600"
               >
                 Rechercher un séjour
@@ -249,10 +368,22 @@ export default function Home() {
 
         <section className="grid gap-4 md:grid-cols-4">
           {[
-            { value: '+1 200', label: 'Acteurs touristiques actifs' },
-            { value: '98%', label: 'Satisfaction voyageur' },
-            { value: '24/7', label: 'Assistance réservation' },
-            { value: '50+', label: 'Expériences locales disponibles' },
+            {
+              value: formatCompact(totalVerifiedUsers),
+              label: 'Acteurs touristiques actifs',
+            },
+            {
+              value: `${Math.round(satisfactionRate)}%`,
+              label: 'Satisfaction voyageur (avis récents)',
+            },
+            {
+              value: formatCompact(totalBookings),
+              label: 'Réservations enregistrées',
+            },
+            {
+              value: formatCompact(totalOffers),
+              label: 'Offres locales disponibles',
+            },
           ].map((stat) => (
             <article
               key={stat.label}
@@ -358,38 +489,45 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {destinations.map((destination) => (
-              <Link
-                key={destination.name}
-                href={destination.href}
-                className="space-y-3 rounded-2xl border border-black/10 bg-background p-4 transition hover:-translate-y-0.5 hover:shadow-sm dark:border-white/15"
-              >
-                <div className="relative h-36 overflow-hidden rounded-xl">
-                  <Image
-                    src={destination.image}
-                    alt={destination.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-semibold">{destination.name}</h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {destination.region}
+            {destinations.length === 0 ? (
+              <article className="md:col-span-2 xl:col-span-4 rounded-2xl border border-black/10 bg-background p-4 text-sm text-zinc-600 dark:border-white/15 dark:text-zinc-300">
+                Aucune destination publiée pour le moment.
+              </article>
+            ) : (
+              destinations.map((destination) => (
+                <Link
+                  key={destination.name}
+                  href={destination.href}
+                  className="space-y-3 rounded-2xl border border-black/10 bg-background p-4 transition hover:-translate-y-0.5 hover:shadow-sm dark:border-white/15"
+                >
+                  <div className="relative h-36 overflow-hidden rounded-xl">
+                    <Image
+                      src={destination.image}
+                      alt={destination.name}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-semibold">{destination.name}</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {destination.region}
+                    </p>
+                  </div>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                    {destination.ambiance}
                   </p>
-                </div>
-                <p className="text-xs text-zinc-600 dark:text-zinc-300">
-                  {destination.ambiance}
-                </p>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs dark:bg-zinc-800">
-                    {destination.type}
-                  </span>
-                  <span className="font-medium">⭐ {destination.rating}</span>
-                </div>
-                <p className="text-sm font-medium">{destination.price}</p>
-              </Link>
-            ))}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs dark:bg-zinc-800">
+                      {destination.type}
+                    </span>
+                    <span className="font-medium">⭐ {destination.rating}</span>
+                  </div>
+                  <p className="text-sm font-medium">{destination.price}</p>
+                </Link>
+              ))
+            )}
           </div>
         </section>
 
@@ -420,20 +558,26 @@ export default function Home() {
             Ce que disent les voyageurs
           </h2>
           <div className="grid gap-4 md:grid-cols-3">
-            {reviews.map((review) => (
-              <article
-                key={review.author}
-                className="rounded-2xl border border-black/10 p-5 dark:border-white/15"
-              >
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                  “{review.text}”
-                </p>
-                <div className="mt-4 flex items-center justify-between text-sm">
-                  <span className="font-medium">{review.author}</span>
-                  <span>⭐ {review.score}</span>
-                </div>
+            {reviews.length === 0 ? (
+              <article className="md:col-span-3 rounded-2xl border border-black/10 p-5 text-sm text-zinc-600 dark:border-white/15 dark:text-zinc-300">
+                Aucun avis publié pour le moment.
               </article>
-            ))}
+            ) : (
+              reviews.map((review) => (
+                <article
+                  key={review.id}
+                  className="rounded-2xl border border-black/10 p-5 dark:border-white/15"
+                >
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                    “{review.text}”
+                  </p>
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <span className="font-medium">{review.author}</span>
+                    <span>⭐ {review.score}</span>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
 

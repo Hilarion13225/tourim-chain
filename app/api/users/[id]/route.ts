@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { UserRole, UserStatus } from '@/app/generated/prisma/enums';
+import {
+  CertificationStatus,
+  CertificationType,
+  UserRole,
+  UserStatus,
+} from '@/app/generated/prisma/enums';
+import { registerBlockchainProof } from '@/lib/blockchain';
 import { prisma } from '@/lib/prisma';
 
 function isValidUserRole(
@@ -16,6 +22,98 @@ function isValidUserStatus(
   return Object.values(UserStatus).includes(
     value as (typeof UserStatus)[keyof typeof UserStatus],
   );
+}
+
+async function ensureApprovedCertificationForUser(params: {
+  userId: string;
+  role: (typeof UserRole)[keyof typeof UserRole];
+  userName: string;
+}) {
+  const { userId, role, userName } = params;
+
+  let certificationType: (typeof CertificationType)[keyof typeof CertificationType] | null = null;
+  let relationFilter: { guideId?: string; artisanId?: string } = {};
+
+  if (role === UserRole.GUIDE) {
+    certificationType = CertificationType.GUIDE_CERTIFICATION;
+    relationFilter = { guideId: userId };
+  }
+
+  if (role === UserRole.ARTISAN) {
+    certificationType = CertificationType.ARTISAN_AUTHENTICITY;
+    relationFilter = { artisanId: userId };
+  }
+
+  if (!certificationType) {
+    return;
+  }
+
+  const existingCertification = await prisma.certification.findFirst({
+    where: {
+      type: certificationType,
+      ...relationFilter,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const approvedCertification = existingCertification
+    ? await prisma.certification.update({
+        where: { id: existingCertification.id },
+        data: {
+          status: CertificationStatus.APPROVED,
+          issuedAt: existingCertification.issuedAt ?? new Date(),
+        },
+      })
+    : await prisma.certification.create({
+        data: {
+          type: certificationType,
+          status: CertificationStatus.APPROVED,
+          issuedAt: new Date(),
+          note: 'Certification approuvée via validation admin',
+          ...(role === UserRole.GUIDE ? { guideId: userId } : {}),
+          ...(role === UserRole.ARTISAN ? { artisanId: userId } : {}),
+        },
+      });
+
+  if (role === UserRole.GUIDE) {
+    await prisma.guideProfile.updateMany({
+      where: { userId },
+      data: { isCertified: true },
+    });
+  }
+
+  if (role === UserRole.ARTISAN) {
+    await prisma.artisanProfile.updateMany({
+      where: { userId },
+      data: { isCertified: true },
+    });
+  }
+
+  try {
+    const blockchainProof = await registerBlockchainProof({
+      ownerId: userId,
+      entityType: 'CERTIFICATION',
+      sourceType: 'CERTIFICATION',
+      sourceId: approvedCertification.id,
+      payload: {
+        certificationId: approvedCertification.id,
+        certificationType: approvedCertification.type,
+        certificationStatus: approvedCertification.status,
+        role,
+        userId,
+        userName,
+      },
+    });
+
+    await prisma.certification.update({
+      where: { id: approvedCertification.id },
+      data: {
+        blockchainHash: blockchainProof.asset.hashTransaction,
+      },
+    });
+  } catch (blockchainError) {
+    console.error('blockchain:certification', blockchainError);
+  }
 }
 
 export async function GET(
@@ -62,6 +160,22 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        role: true,
+        verified: true,
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'utilisateur introuvable' },
+        { status: 404 },
+      );
+    }
+
     const body = await request.json();
     const { nom, role, status, verified } = body as {
       nom?: string;
@@ -96,6 +210,19 @@ export async function PATCH(
         createdAt: true,
       },
     });
+
+    const shouldIssueCertification =
+      verified === true &&
+      (existingUser.verified === false ||
+        existingUser.role !== (user.role as (typeof UserRole)[keyof typeof UserRole]));
+
+    if (shouldIssueCertification) {
+      await ensureApprovedCertificationForUser({
+        userId: user.id,
+        role: user.role,
+        userName: user.nom,
+      });
+    }
 
     return NextResponse.json(user);
   } catch (error) {

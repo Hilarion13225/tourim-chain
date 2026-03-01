@@ -98,6 +98,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ vehicules, vehiculesDisponibles });
     }
 
+    if (role === 'RESTAURANT') {
+      const [plats, platsDisponibles, commandes] = await Promise.all([
+        prisma.restaurantDish.count({ where: { restaurantId: userId } }),
+        prisma.restaurantDish.count({
+          where: { restaurantId: userId, disponible: true, stock: { gt: 0 } },
+        }),
+        prisma.restaurantOrder.count({ where: { restaurantId: userId } }),
+      ]);
+
+      return NextResponse.json({ plats, platsDisponibles, commandes });
+    }
+
     if (role === 'ADMIN') {
       const [validationActeurs, analyticsNationaux] = await Promise.all([
         prisma.user.count({ where: { verified: false } }),

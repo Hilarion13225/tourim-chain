@@ -1,14 +1,8 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  filterMockSites,
-  mockEvents,
-  mockProducts,
-} from '@/lib/mock-tourism-data';
-
-const USE_MOCK_DATA = true;
+import Image from 'next/image';
 
 type Site = {
   id: string;
@@ -16,6 +10,11 @@ type Site = {
   region: string;
   description: string;
   categorieTourisme: string;
+  medias?: Array<{
+    id: string;
+    url: string;
+    type: string;
+  }>;
 };
 
 type EventTicketType = {
@@ -29,6 +28,7 @@ type EventTicketType = {
 type EventItem = {
   id: string;
   nom: string;
+  photoUrl?: string | null;
   lieu: string;
   region: string;
   startAt: string;
@@ -38,13 +38,65 @@ type EventItem = {
 type Product = {
   id: string;
   nom: string;
+  description?: string;
+  region?: string;
+  culture?: string;
   prix: string;
   status: string;
   certificatBlockchain: string | null;
   artisan: {
     nom: string;
   };
+  medias?: Array<{
+    id: string;
+    url: string;
+    type: string;
+  }>;
 };
+
+function parseTourismDescription(description: string) {
+  if (!description.startsWith('__TOURISM_META__')) {
+    return description;
+  }
+
+  const firstLineBreak = description.indexOf('\n');
+  return firstLineBreak >= 0 ? description.slice(firstLineBreak + 1) : '';
+}
+
+function tourismCategoryLabel(category: string) {
+  switch (category) {
+    case 'CULTURE':
+      return 'Culture';
+    case 'NATURE':
+      return 'Nature';
+    case 'BEACH':
+      return 'Balnéaire';
+    case 'HERITAGE':
+      return 'Patrimoine';
+    case 'RELIGIOUS':
+      return 'Religieux';
+    case 'ADVENTURE':
+      return 'Aventure';
+    default:
+      return category;
+  }
+}
+
+function tourismFallbackImage(category: string) {
+  switch (category) {
+    case 'CULTURE':
+    case 'HERITAGE':
+    case 'RELIGIOUS':
+      return '/envies/culturel.svg';
+    case 'NATURE':
+    case 'ADVENTURE':
+      return '/envies/ecologique.svg';
+    case 'BEACH':
+      return '/envies/balneaire.svg';
+    default:
+      return '/envies/sportif.svg';
+  }
+}
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -68,9 +120,6 @@ export default function HomeMarketSections() {
   const router = useRouter();
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
 
-  const [query, setQuery] = useState('');
-  const [region, setRegion] = useState('');
-  const [categorie, setCategorie] = useState('');
   const [sites, setSites] = useState<Site[]>([]);
   const [sitesLoading, setSitesLoading] = useState(true);
   const [sitesError, setSitesError] = useState('');
@@ -96,29 +145,8 @@ export default function HomeMarketSections() {
     setSitesLoading(true);
     setSitesError('');
 
-    if (USE_MOCK_DATA) {
-      const filtered = filterMockSites({ query, region, categorie });
-      setSites(filtered);
-      setSitesLoading(false);
-      return;
-    }
-
     try {
-      const params = new URLSearchParams();
-
-      if (query) {
-        params.set('q', query);
-      }
-
-      if (region) {
-        params.set('region', region);
-      }
-
-      if (categorie) {
-        params.set('categorie', categorie);
-      }
-
-      const response = await fetch(`/api/sites?${params.toString()}`);
+      const response = await fetch('/api/sites');
       const data = (await response.json()) as Site[] | { error?: string };
 
       if (!response.ok) {
@@ -158,12 +186,6 @@ export default function HomeMarketSections() {
       setEventsLoading(true);
       setEventsError('');
 
-      if (USE_MOCK_DATA) {
-        setEvents(mockEvents);
-        setEventsLoading(false);
-        return;
-      }
-
       try {
         const response = await fetch('/api/events');
         const data = (await response.json()) as
@@ -190,12 +212,6 @@ export default function HomeMarketSections() {
       setProductsLoading(true);
       setProductsError('');
 
-      if (USE_MOCK_DATA) {
-        setProducts(mockProducts);
-        setProductsLoading(false);
-        return;
-      }
-
       try {
         const response = await fetch('/api/artisan-products');
         const data = (await response.json()) as Product[] | { error?: string };
@@ -220,13 +236,7 @@ export default function HomeMarketSections() {
     void loadSites();
     void loadEvents();
     void loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await loadSites();
-  }
 
   async function handleReserve(siteId: string) {
     setReserveError('');
@@ -238,12 +248,6 @@ export default function HomeMarketSections() {
     }
 
     setLoadingSiteId(siteId);
-
-    if (USE_MOCK_DATA) {
-      setReserveMessage(`Réservation démo confirmée (#DEMO-${siteId}).`);
-      setLoadingSiteId(null);
-      return;
-    }
 
     try {
       const response = await fetch('/api/bookings/quick', {
@@ -283,12 +287,6 @@ export default function HomeMarketSections() {
 
     setLoadingEventId(eventId);
 
-    if (USE_MOCK_DATA) {
-      setBuyMessage('Billet acheté avec succès (mode démo).');
-      setLoadingEventId(null);
-      return;
-    }
-
     try {
       const response = await fetch('/api/events/orders', {
         method: 'POST',
@@ -326,12 +324,6 @@ export default function HomeMarketSections() {
     }
 
     setLoadingProductId(productId);
-
-    if (USE_MOCK_DATA) {
-      setOrderMessage(`Commande validée (mode démo) pour ${productId}.`);
-      setLoadingProductId(null);
-      return;
-    }
 
     try {
       const response = await fetch('/api/marketplace/orders', {
@@ -371,33 +363,6 @@ export default function HomeMarketSections() {
           </p>
         </div>
 
-        <form
-          onSubmit={handleSearch}
-          className="grid gap-3 rounded-2xl border border-black/10 p-4 dark:border-white/15 md:grid-cols-4"
-        >
-          <input
-            className="rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            placeholder="Rechercher un site"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <input
-            className="rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            placeholder="Région"
-            value={region}
-            onChange={(event) => setRegion(event.target.value)}
-          />
-          <input
-            className="rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            placeholder="Catégorie (CULTURE, NATURE...)"
-            value={categorie}
-            onChange={(event) => setCategorie(event.target.value.toUpperCase())}
-          />
-          <button className="tc-cta rounded-xl px-4 py-2 text-sm font-medium">
-            Appliquer
-          </button>
-        </form>
-
         {sitesError ? (
           <p className="text-sm text-red-600">{sitesError}</p>
         ) : null}
@@ -417,16 +382,29 @@ export default function HomeMarketSections() {
                 key={site.id}
                 className="space-y-3 rounded-2xl border border-black/10 p-4 dark:border-white/15"
               >
-                <div className="h-32 rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+                <div className="relative h-32 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                  <Image
+                    src={
+                      site.medias?.find((media) => media.type === 'IMAGE')
+                        ?.url || tourismFallbackImage(site.categorieTourisme)
+                    }
+                    alt={site.nom}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
                 <h3 className="font-semibold">{site.nom}</h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   {site.region}
                 </p>
                 <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-300">
-                  {site.description}
+                  {parseTourismDescription(site.description)}
                 </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs">{site.categorieTourisme}</span>
+                  <span className="text-xs">
+                    {tourismCategoryLabel(site.categorieTourisme)}
+                  </span>
                   <button
                     onClick={() => void handleReserve(site.id)}
                     className="tc-cta rounded-full px-3 py-1.5 text-xs disabled:opacity-60"
@@ -479,7 +457,15 @@ export default function HomeMarketSections() {
                   key={eventItem.id}
                   className="space-y-2 rounded-2xl border border-black/10 p-5 dark:border-white/15"
                 >
-                  <div className="h-32 rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+                  <div className="relative h-32 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                    <Image
+                      src={eventItem.photoUrl || '/envies/sportif.svg'}
+                      alt={eventItem.nom}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
                   <h3 className="font-semibold">{eventItem.nom}</h3>
                   <p className="text-sm text-zinc-600 dark:text-zinc-300">
                     {eventItem.lieu}, {eventItem.region}
@@ -534,11 +520,33 @@ export default function HomeMarketSections() {
                 key={product.id}
                 className="space-y-3 rounded-2xl border border-black/10 p-4 dark:border-white/15"
               >
-                <div className="h-32 rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+                <div className="relative h-32 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                  <Image
+                    src={
+                      product.medias?.find((media) => media.type === 'IMAGE')
+                        ?.url || '/envies/culturel.svg'
+                    }
+                    alt={product.nom}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
                 <h3 className="font-semibold">{product.nom}</h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-300">
                   {product.artisan.nom}
                 </p>
+                {product.region || product.culture ? (
+                  <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                    Région: {product.region ?? 'N/A'} • Culture:{' '}
+                    {product.culture ?? 'N/A'}
+                  </p>
+                ) : null}
+                {product.description ? (
+                  <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                    {product.description}
+                  </p>
+                ) : null}
                 <p className="text-sm font-medium">
                   {formatMoney(product.prix)} FCFA
                 </p>

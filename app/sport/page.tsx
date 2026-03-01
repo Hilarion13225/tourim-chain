@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 type SportView = 'ACTIVITES' | 'EVENEMENTS';
-type SportType = 'Nautique' | 'Randonnée' | 'Cyclisme' | 'Fitness' | 'Outdoor';
+type SportType = string;
 
 type SportActivity = {
   id: string;
@@ -14,6 +15,7 @@ type SportActivity = {
   prix: number;
   dureeHeures: number;
   intensity: 1 | 2 | 3 | 4 | 5;
+  photoUrl?: string | null;
 };
 
 type SportEvent = {
@@ -24,93 +26,63 @@ type SportEvent = {
   prixTicket: number;
   niveau: 'Débutant' | 'Intermédiaire' | 'Avancé';
   date: string;
+  photoUrl?: string | null;
 };
 
-const sportActivities: SportActivity[] = [
-  {
-    id: 'sa-1',
-    titre: 'Surf & Jet-ski à Assinie',
-    ville: 'Assinie',
-    type: 'Nautique',
-    prix: 38000,
-    dureeHeures: 4,
-    intensity: 4,
-  },
-  {
-    id: 'sa-2',
-    titre: 'Randonnée guidée Mont Tonkpi',
-    ville: 'Man',
-    type: 'Randonnée',
-    prix: 22000,
-    dureeHeures: 6,
-    intensity: 3,
-  },
-  {
-    id: 'sa-3',
-    titre: 'Cyclisme urbain by night',
-    ville: 'Abidjan',
-    type: 'Cyclisme',
-    prix: 14000,
-    dureeHeures: 2,
-    intensity: 2,
-  },
-  {
-    id: 'sa-4',
-    titre: 'Bootcamp plage Grand-Bassam',
-    ville: 'Grand-Bassam',
-    type: 'Fitness',
-    prix: 16000,
-    dureeHeures: 2,
-    intensity: 5,
-  },
-];
+type ApiEvent = {
+  id: string;
+  nom: string;
+  photoUrl?: string | null;
+  description: string;
+  lieu: string;
+  startAt: string;
+  ticketTypes?: Array<{
+    id: string;
+    prix: string;
+  }>;
+};
 
-const sportEvents: SportEvent[] = [
-  {
-    id: 'se-1',
-    titre: 'Trail Nature Taï Challenge',
-    ville: 'Taï',
-    type: 'Outdoor',
-    prixTicket: 12000,
-    niveau: 'Intermédiaire',
-    date: '12/04/2026',
-  },
-  {
-    id: 'se-2',
-    titre: 'Tour cycliste d’Abidjan',
-    ville: 'Abidjan',
-    type: 'Cyclisme',
-    prixTicket: 9000,
-    niveau: 'Débutant',
-    date: '19/04/2026',
-  },
-  {
-    id: 'se-3',
-    titre: 'Open nautique Assinie',
-    ville: 'Assinie',
-    type: 'Nautique',
-    prixTicket: 15000,
-    niveau: 'Avancé',
-    date: '03/05/2026',
-  },
-  {
-    id: 'se-4',
-    titre: 'Marche sportive de Yamoussoukro',
-    ville: 'Yamoussoukro',
-    type: 'Randonnée',
-    prixTicket: 7000,
-    niveau: 'Débutant',
-    date: '10/05/2026',
-  },
-];
+type OrganizerMeta = {
+  itemType?: 'ACTIVITY' | 'EVENT';
+  category?: string;
+  intensity?: number;
+  durationHours?: number;
+  level?: 'Débutant' | 'Intermédiaire' | 'Avancé';
+  ticketPrice?: number;
+};
+
+function parseOrganizerMeta(description: string): OrganizerMeta {
+  if (!description.startsWith('__ORG_META__')) {
+    return {};
+  }
+
+  const firstLineBreak = description.indexOf('\n');
+  const metaLine =
+    firstLineBreak >= 0 ? description.slice(0, firstLineBreak) : description;
+  const rawJson = metaLine.replace('__ORG_META__', '');
+
+  try {
+    return JSON.parse(rawJson) as OrganizerMeta;
+  } catch {
+    return {};
+  }
+}
 
 function formatMoney(value: number) {
   return `${new Intl.NumberFormat('fr-FR').format(value)} FCFA`;
 }
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('fr-FR');
+}
+
 export default function SportPage() {
   const router = useRouter();
 
+  const [activities, setActivities] = useState<SportActivity[]>([]);
+  const [events, setEvents] = useState<SportEvent[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState('');
   const [view, setView] = useState<SportView>('ACTIVITES');
   const [query, setQuery] = useState('');
   const [ville, setVille] = useState('Toutes');
@@ -141,18 +113,91 @@ export default function SportPage() {
       }
     }
 
+    async function loadSportData() {
+      setDataLoading(true);
+      setDataError('');
+
+      try {
+        const response = await fetch('/api/events?status=PUBLISHED');
+        const data = (await response.json()) as ApiEvent[] | { error?: string };
+
+        if (!response.ok) {
+          setDataError(
+            (data as { error?: string }).error ??
+              'Erreur de chargement des activités sportives.',
+          );
+          setActivities([]);
+          setEvents([]);
+          return;
+        }
+
+        const normalizedActivities: SportActivity[] = [];
+        const normalizedEvents: SportEvent[] = [];
+
+        for (const item of data as ApiEvent[]) {
+          const meta = parseOrganizerMeta(item.description);
+          const ticketPrice = Number(
+            item.ticketTypes?.[0]?.prix ?? meta.ticketPrice ?? 0,
+          );
+
+          if (meta.itemType === 'ACTIVITY') {
+            normalizedActivities.push({
+              id: item.id,
+              titre: item.nom,
+              ville: item.lieu,
+              type: meta.category ?? 'Outdoor',
+              prix: ticketPrice || 38000,
+              dureeHeures: Math.max(1, Math.floor(meta.durationHours ?? 4)),
+              intensity: Math.min(
+                5,
+                Math.max(1, Math.floor(meta.intensity ?? 3)),
+              ) as 1 | 2 | 3 | 4 | 5,
+              photoUrl: item.photoUrl,
+            });
+            continue;
+          }
+
+          normalizedEvents.push({
+            id: item.id,
+            titre: item.nom,
+            ville: item.lieu,
+            type: meta.category ?? 'Outdoor',
+            prixTicket: ticketPrice || 12000,
+            niveau: meta.level ?? 'Intermédiaire',
+            date: formatDate(item.startAt),
+            photoUrl: item.photoUrl,
+          });
+        }
+
+        setActivities(normalizedActivities);
+        setEvents(normalizedEvents);
+      } catch {
+        setDataError('Erreur réseau pendant le chargement des données sport.');
+        setActivities([]);
+        setEvents([]);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+
     void loadSession();
+    void loadSportData();
   }, []);
 
   const availableCities = useMemo(() => {
-    const source = view === 'ACTIVITES' ? sportActivities : sportEvents;
+    const source = view === 'ACTIVITES' ? activities : events;
     return ['Toutes', ...new Set(source.map((item) => item.ville))];
-  }, [view]);
+  }, [view, activities, events]);
+
+  const availableSportTypes = useMemo(() => {
+    const source = view === 'ACTIVITES' ? activities : events;
+    return ['Tous', ...new Set(source.map((item) => item.type))];
+  }, [view, activities, events]);
 
   const filteredActivities = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return sportActivities.filter((item) => {
+    return activities.filter((item) => {
       const matchesQuery =
         !normalizedQuery ||
         `${item.titre} ${item.ville} ${item.type}`
@@ -173,12 +218,12 @@ export default function SportPage() {
         matchesDuration
       );
     });
-  }, [query, ville, sportType, budgetMax, intensityMax, maxDuree]);
+  }, [activities, query, ville, sportType, budgetMax, intensityMax, maxDuree]);
 
   const filteredEvents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return sportEvents.filter((item) => {
+    return events.filter((item) => {
       const matchesQuery =
         !normalizedQuery ||
         `${item.titre} ${item.ville} ${item.type}`
@@ -197,7 +242,7 @@ export default function SportPage() {
         matchesNiveau
       );
     });
-  }, [query, ville, sportType, budgetMax, niveau]);
+  }, [events, query, ville, sportType, budgetMax, niveau]);
 
   function switchView(next: SportView) {
     setView(next);
@@ -216,57 +261,19 @@ export default function SportPage() {
     setActionError('');
     setFeedback('');
 
+    if (view === 'ACTIVITES') {
+      setLoadingId(itemId);
+      router.push(`/sport/activite/${itemId}`);
+      return;
+    }
+
     if (!sessionUserId) {
       router.push('/login');
       return;
     }
 
     setLoadingId(itemId);
-
-    const activity = sportActivities.find((item) => item.id === itemId);
-    const eventItem = sportEvents.find((item) => item.id === itemId);
-
-    const actionType = view === 'ACTIVITES' ? 'SPORT_ACTIVITY' : 'SPORT_EVENT';
-    const itemLabel = activity?.titre ?? eventItem?.titre ?? itemId;
-    const amount = activity?.prix ?? eventItem?.prixTicket ?? 1000;
-
-    try {
-      const response = await fetch('/api/tourist-actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actionType,
-          itemId,
-          itemLabel,
-          amount,
-          participants: 1,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        message?: string;
-        reference?: string;
-      };
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-
-        setActionError(data.error ?? 'Action impossible.');
-        return;
-      }
-
-      setFeedback(
-        `${data.message ?? 'Action confirmée.'} Réf: ${data.reference ?? 'N/A'}`,
-      );
-    } catch {
-      setActionError('Erreur réseau pendant l’action.');
-    } finally {
-      setLoadingId(null);
-    }
+    router.push(`/sport/evenement/${itemId}`);
   }
 
   return (
@@ -344,12 +351,11 @@ export default function SportPage() {
               }
               className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
             >
-              <option value="Tous">Tous</option>
-              <option value="Nautique">Nautique</option>
-              <option value="Randonnée">Randonnée</option>
-              <option value="Cyclisme">Cyclisme</option>
-              <option value="Fitness">Fitness</option>
-              <option value="Outdoor">Outdoor</option>
+              {availableSportTypes.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -421,9 +427,19 @@ export default function SportPage() {
         </aside>
 
         <div className="space-y-4">
-          {actionError ? <p className="text-sm text-red-600">{actionError}</p> : null}
+          {dataError ? (
+            <p className="text-sm text-red-600">{dataError}</p>
+          ) : null}
+          {actionError ? (
+            <p className="text-sm text-red-600">{actionError}</p>
+          ) : null}
           {feedback ? (
             <p className="text-sm text-emerald-600">{feedback}</p>
+          ) : null}
+          {dataLoading ? (
+            <p className="text-sm text-zinc-500">
+              Chargement des données sport...
+            </p>
           ) : null}
 
           {view === 'ACTIVITES' ? (
@@ -437,6 +453,18 @@ export default function SportPage() {
                     key={item.id}
                     className="space-y-3 rounded-2xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900"
                   >
+                    {item.photoUrl ? (
+                      <div className="relative h-36 w-full overflow-hidden rounded-xl">
+                        <Image
+                          src={item.photoUrl}
+                          alt={item.titre}
+                          fill
+                          unoptimized
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : null}
                     <h2 className="text-lg font-semibold">{item.titre}</h2>
                     <p className="text-sm text-zinc-600 dark:text-zinc-300">
                       📍 {item.ville} • {item.type}
@@ -471,6 +499,18 @@ export default function SportPage() {
                     key={item.id}
                     className="space-y-3 rounded-2xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900"
                   >
+                    {item.photoUrl ? (
+                      <div className="relative h-36 w-full overflow-hidden rounded-xl">
+                        <Image
+                          src={item.photoUrl}
+                          alt={item.titre}
+                          fill
+                          unoptimized
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : null}
                     <h2 className="text-lg font-semibold">{item.titre}</h2>
                     <p className="text-sm text-zinc-600 dark:text-zinc-300">
                       📍 {item.ville} • {item.type}

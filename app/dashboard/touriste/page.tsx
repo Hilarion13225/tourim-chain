@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getRoleDashboardPath, getSessionUser } from '@/lib/session';
 import DashboardSummaryClient from '@/app/dashboard/_components/dashboard-summary-client';
-import TouristeCrudClient from '@/app/dashboard/_components/touriste-crud-client';
 import DashboardRoleHero from '@/app/dashboard/_components/dashboard-role-hero';
+import TouristeReservationsList from '@/app/dashboard/_components/touriste-reservations-list';
 
 export default async function TouristeDashboardPage() {
   const sessionUser = await getSessionUser();
@@ -21,7 +21,7 @@ export default async function TouristeDashboardPage() {
         title="Dashboard Touriste"
         subtitle="Suivez vos voyages, réservations et expériences culturelles en un seul espace."
         actions={[
-          { label: 'Explorer les séjours', href: '/sejours' },
+          { label: 'Explorer les séjours', href: '/tourisme' },
           { label: 'Mes favoris', href: '/dashboard/touriste' },
         ]}
         stats={[
@@ -31,7 +31,7 @@ export default async function TouristeDashboardPage() {
         ]}
       />
       <DashboardSummaryClient role="TOURIST" userId={sessionUser.userId} />
-      <TouristeCrudClient userId={sessionUser.userId} />
+      <TouristeReservationsList userId={sessionUser.userId} />
     </main>
   );
 }

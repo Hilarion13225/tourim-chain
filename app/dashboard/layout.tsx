@@ -29,7 +29,10 @@ function getRoleNavItems(role: string): NavItem[] {
   if (role === 'ORGANIZER') {
     return [
       { label: 'Dashboard Organisateur', href: '/dashboard/organisateur' },
-      { label: 'Gestion événements', href: '/dashboard/organisateur' },
+      {
+        label: 'Gestion activités & événements',
+        href: '/dashboard/organisateur',
+      },
       { label: 'Scan billets', href: '/dashboard/organisateur' },
     ];
   }
@@ -62,11 +65,27 @@ function getRoleNavItems(role: string): NavItem[] {
     ];
   }
 
+  if (role === 'RESTAURANT') {
+    return [
+      { label: 'Dashboard Restaurant', href: '/dashboard/restaurant' },
+      { label: 'Mes plats', href: '/dashboard/restaurant' },
+      { label: 'Commandes reçues', href: '/dashboard/restaurant' },
+    ];
+  }
+
   if (role === 'ADMIN') {
     return [
       { label: 'Dashboard Admin', href: '/dashboard/admin' },
-      { label: 'Validation acteurs', href: '/dashboard/admin' },
-      { label: 'Analytics nationaux', href: '/dashboard/admin' },
+      {
+        label: 'Validation acteurs',
+        href: '/dashboard/admin/validation-acteurs',
+      },
+      {
+        label: 'Analytics nationaux',
+        href: '/dashboard/admin/analytics-nationaux',
+      },
+      { label: 'Alertes urgence', href: '/dashboard/admin/alertes-urgence' },
+      { label: 'Réservations', href: '/dashboard/admin/reservations' },
     ];
   }
 
@@ -92,7 +111,7 @@ export default async function DashboardLayout({
   const navItems = getRoleNavItems(sessionUser.role);
 
   return (
-    <div className="mx-auto grid min-h-screen w-full max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[280px_1fr] lg:px-8">
+    <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[280px_1fr] lg:px-8">
       <aside className="h-fit rounded-2xl border border-black/10 bg-white p-4 shadow-sm dark:border-white/15 dark:bg-zinc-900 lg:sticky lg:top-6">
         <div className="mb-4 border-b border-black/10 pb-4 dark:border-white/15">
           <p className="text-lg font-bold">
@@ -102,7 +121,7 @@ export default async function DashboardLayout({
           <p className="text-xs uppercase tracking-wide text-zinc-500">
             Espace connecté
           </p>
-          <p className="mt-1 text-sm font-semibold">{sessionUser.email}</p>
+          <p className="mt-1 break-all text-sm font-semibold">{sessionUser.email}</p>
           <p className="text-xs text-zinc-500">Rôle: {sessionUser.role}</p>
         </div>
 
@@ -111,7 +130,7 @@ export default async function DashboardLayout({
             <Link
               key={`${item.label}-${item.href}`}
               href={item.href}
-              className="block rounded-lg px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className="block rounded-lg px-3 py-2 text-sm break-words hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               {item.label}
             </Link>

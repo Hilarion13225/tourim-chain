@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 const services = [
   { label: 'Flights', href: '/flights', icon: '✈️' },
-  { label: 'Stays', href: '/sejours', icon: '🛏️' },
+  { label: 'Stays', href: '/tourisme', icon: '🛏️' },
   { label: 'Cars', href: '/cars', icon: '🚗' },
   { label: 'Packages', href: '/packages', icon: '🎒' },
   { label: 'Cruises', href: '/cruises', icon: '🛳️' },

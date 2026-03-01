@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BookingStatus, PaymentStatus } from '@/app/generated/prisma/enums';
+import { trackEvent } from '@/lib/analytics';
+import { registerBlockchainProof } from '@/lib/blockchain';
 import { prisma } from '@/lib/prisma';
 
 function isValidBookingStatus(
@@ -86,6 +88,38 @@ export async function PATCH(
         ...(notes !== undefined ? { notes } : {}),
       },
     });
+
+    if (paymentStatus === 'PAID') {
+      await trackEvent({
+        userId: updatedBooking.touristId,
+        eventType: 'payment_confirmed',
+        module: 'BOOKING',
+        amount: Number(updatedBooking.totalAmount),
+        success: true,
+        metadata: {
+          bookingId: updatedBooking.id,
+          status: updatedBooking.statut,
+        },
+      });
+
+      try {
+        await registerBlockchainProof({
+          ownerId: updatedBooking.touristId,
+          entityType: 'EVENT_TICKET',
+          sourceType: 'BOOKING',
+          sourceId: updatedBooking.id,
+          payload: {
+            bookingId: updatedBooking.id,
+            touristId: updatedBooking.touristId,
+            totalAmount: Number(updatedBooking.totalAmount),
+            paymentStatus: updatedBooking.paymentStatus,
+            status: updatedBooking.statut,
+          },
+        });
+      } catch (blockchainError) {
+        console.error('blockchain:booking', blockchainError);
+      }
+    }
 
     return NextResponse.json(updatedBooking);
   } catch (error) {

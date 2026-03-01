@@ -32,6 +32,125 @@ function makeDemoReference(prefix: string) {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 }
 
+type GuideMeta = {
+  guideId?: string;
+};
+
+function readGuideIdFromMetadata(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object') {
+    return null;
+  }
+
+  const guideId = (metadata as GuideMeta).guideId;
+  return typeof guideId === 'string' && guideId ? guideId : null;
+}
+
+async function findAutoAssignedGuideId(params?: { siteId?: string }) {
+  const siteId = params?.siteId;
+
+  if (siteId) {
+    const links = await prisma.adminAction.findMany({
+      where: {
+        targetType: 'TOURIST_SITE',
+        targetId: siteId,
+        action: 'SITE_GUIDE_AFFILIATION',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        metadata: true,
+      },
+    });
+
+    const principalGuideId = links
+      .map((item) => readGuideIdFromMetadata(item.metadata))
+      .find((value): value is string => Boolean(value));
+
+    if (principalGuideId) {
+      const affiliatedGuide = await prisma.user.findFirst({
+        where: {
+          id: principalGuideId,
+          role: 'GUIDE',
+          status: 'ACTIVE',
+          verified: true,
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+
+      if (affiliatedGuide) {
+        return affiliatedGuide.id;
+      }
+
+      const affiliatedFallbackGuide = await prisma.user.findFirst({
+        where: {
+          id: principalGuideId,
+          role: 'GUIDE',
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+
+      if (affiliatedFallbackGuide) {
+        return affiliatedFallbackGuide.id;
+      }
+    }
+  }
+
+  let siteRegion: string | null = null;
+
+  if (siteId) {
+    const site = await prisma.touristSite.findUnique({
+      where: { id: siteId },
+      select: { region: true },
+    });
+
+    siteRegion = site?.region ?? null;
+  }
+
+  if (siteRegion) {
+    const regionGuide = await prisma.user.findFirst({
+      where: {
+        role: 'GUIDE',
+        status: 'ACTIVE',
+        verified: true,
+        guideProfile: {
+          is: {
+            region: { contains: siteRegion, mode: 'insensitive' },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (regionGuide) {
+      return regionGuide.id;
+    }
+  }
+
+  const activeGuide = await prisma.user.findFirst({
+    where: {
+      role: 'GUIDE',
+      status: 'ACTIVE',
+      verified: true,
+    },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+
+  if (activeGuide) {
+    return activeGuide.id;
+  }
+
+  const fallbackGuide = await prisma.user.findFirst({
+    where: { role: 'GUIDE' },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+
+  return fallbackGuide?.id ?? null;
+}
+
 async function createBookingLikeAction(params: {
   userId: string;
   actionType: TouristActionType;
@@ -41,13 +160,13 @@ async function createBookingLikeAction(params: {
   participants: number;
   date?: string;
 }) {
-  const guide = await prisma.user.findFirst({
-    where: { role: 'GUIDE' },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  });
+  const guideId = await findAutoAssignedGuideId(
+    params.actionType === 'TOURISM_ACTIVITY'
+      ? { siteId: params.itemId }
+      : undefined,
+  );
 
-  if (!guide) {
+  if (!guideId) {
     return {
       persisted: false,
       reference: makeDemoReference('DEMO'),
@@ -58,7 +177,7 @@ async function createBookingLikeAction(params: {
   const booking = await prisma.booking.create({
     data: {
       touristId: params.userId,
-      guideId: guide.id,
+      guideId,
       date: params.date
         ? new Date(params.date)
         : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),

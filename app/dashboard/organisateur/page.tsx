@@ -19,13 +19,14 @@ export default async function OrganisateurDashboardPage() {
     <main className="mx-auto w-full max-w-7xl space-y-8 px-6 py-10 lg:px-10">
       <DashboardRoleHero
         title="Dashboard Organisateur"
-        subtitle="Créez et supervisez vos événements avec un pilotage complet des ventes et accès."
+        subtitle="Créez et supervisez vos activités et événements avec un pilotage complet des ventes et accès."
         actions={[
+          { label: 'Créer une activité', href: '/dashboard/organisateur' },
           { label: 'Créer un événement', href: '/dashboard/organisateur' },
           { label: 'Suivre billetterie', href: '/dashboard/organisateur' },
         ]}
         stats={[
-          { label: 'Événements actifs', value: '05' },
+          { label: 'Activités / événements actifs', value: '05' },
           { label: 'Billets vendus', value: '1 240' },
           { label: 'Taux de remplissage', value: '74%' },
         ]}

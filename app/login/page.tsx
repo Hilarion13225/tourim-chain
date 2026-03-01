@@ -1,10 +1,12 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [nom, setNom] = useState('');
   const [telephone, setTelephone] = useState('');
@@ -24,7 +26,9 @@ export default function LoginPage() {
       const endpoint =
         mode === 'login' ? '/api/auth/login' : '/api/auth/register';
       const payload =
-        mode === 'login' ? { email, password } : { nom, email, password, role };
+        mode === 'login'
+          ? { email, password }
+          : { nom, email, password, phone: telephone, role };
 
       if (mode === 'register' && !acceptTerms) {
         setError('Veuillez accepter les conditions pour continuer.');
@@ -47,6 +51,11 @@ export default function LoginPage() {
         return;
       }
 
+      if (mode === 'login' && returnTo) {
+        router.push(returnTo);
+        return;
+      }
+
       router.push(data.dashboardPath ?? '/dashboard/touriste');
     } catch {
       setError('Erreur réseau, veuillez réessayer.');
@@ -56,8 +65,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f7fb] dark:bg-zinc-950">
-      <section className="mx-auto grid min-h-screen w-full max-w-7xl lg:grid-cols-2">
+    <main className="bg-[#f6f7fb] dark:bg-zinc-950">
+      <section className="mx-auto grid w-full max-w-7xl lg:grid-cols-2">
         <div className="flex items-center justify-center px-6 py-10 lg:px-12">
           <div className="w-full max-w-md space-y-6">
             <div className="flex items-center gap-2 rounded-xl border border-black/10 bg-white p-1 dark:border-white/15 dark:bg-zinc-900">
@@ -142,6 +151,7 @@ export default function LoginPage() {
                   <option value="VEHICLE_RENTAL_COMPANY">
                     Entreprise de location de véhicule
                   </option>
+                  <option value="RESTAURANT">Restaurant</option>
                   <option value="ADMIN">Admin</option>
                 </select>
               ) : null}
@@ -214,7 +224,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#122a96] via-[#2040c3] to-[#2545cc] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+        <aside className="relative hidden overflow-hidden bg-linear-to-br from-[#122a96] via-[#2040c3] to-[#2545cc] p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div>
             <p className="text-2xl font-extrabold tracking-tight">
               tourisme <span className="text-cyan-300">Ci</span>

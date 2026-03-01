@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { MediaType } from '@/app/generated/prisma/enums';
 import { ProductStatus } from '@/app/generated/prisma/enums';
 import { prisma } from '@/lib/prisma';
 
@@ -62,7 +63,9 @@ export async function POST(request: NextRequest) {
       nom,
       description,
       categorie,
+      culture,
       regionOrigine,
+      imageUrl,
       prix,
       stock,
       status,
@@ -71,22 +74,27 @@ export async function POST(request: NextRequest) {
       nom?: string;
       description?: string;
       categorie?: string;
+      culture?: string;
       regionOrigine?: string;
+      imageUrl?: string;
       prix?: number;
       stock?: number;
       status?: string;
     };
 
+    const resolvedCategory = categorie ?? culture;
+
     if (
       !artisanId ||
       !nom ||
       !description ||
-      !categorie ||
+      !resolvedCategory ||
       prix === undefined
     ) {
       return NextResponse.json(
         {
-          error: 'artisanId, nom, description, categorie et prix sont requis',
+          error:
+            'artisanId, nom, description, categorie/culture et prix sont requis',
         },
         { status: 400 },
       );
@@ -104,11 +112,34 @@ export async function POST(request: NextRequest) {
         artisanId,
         nom,
         description,
-        categorie,
+        categorie: resolvedCategory,
         regionOrigine,
         prix,
         stock: stock ?? 0,
+        ...(imageUrl
+          ? {
+              medias: {
+                create: [
+                  {
+                    url: imageUrl,
+                    type: MediaType.IMAGE,
+                  },
+                ],
+              },
+            }
+          : {}),
         ...(normalizedStatus ? { status: normalizedStatus } : {}),
+      },
+      include: {
+        artisan: {
+          select: {
+            id: true,
+            nom: true,
+            email: true,
+            verified: true,
+          },
+        },
+        medias: true,
       },
     });
 

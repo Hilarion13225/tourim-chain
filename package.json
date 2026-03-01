@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "analytics:backfill": "npx prisma db execute --file scripts/backfill-analytics.sql"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
@@ -16,12 +17,15 @@
     "antd": "^6.3.1",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
+    "chart.js": "^4.5.1",
+    "ethers": "^6.16.0",
     "jsonwebtoken": "^9.0.3",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
     "pg": "^8.19.0",
     "prisma": "^7.4.2",
     "react": "19.2.3",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.3",
     "zustand": "^5.0.11"
   },

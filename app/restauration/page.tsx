@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 type FoodView = 'RESTAURANTS' | 'PLATS';
-type CuisineType = 'Ivoirienne' | 'Africaine' | 'Street Food' | 'Fusion';
+type CuisineType = string;
 
 type Restaurant = {
   id: string;
@@ -18,96 +19,36 @@ type Restaurant = {
 
 type Dish = {
   id: string;
+  restaurantId: string;
   nom: string;
   restaurant: string;
   ville: string;
   cuisine: CuisineType;
   prix: number;
-  spicyLevel: 1 | 2 | 3 | 4 | 5;
+  spicyLevel: number;
   livraison: boolean;
+  stock: number;
+  photoUrl?: string | null;
 };
 
-const restaurants: Restaurant[] = [
-  {
-    id: 'res-1',
-    nom: 'Garba Signature',
-    ville: 'Abidjan',
-    cuisine: 'Street Food',
-    ticketMoyen: 7000,
-    note: 8.8,
-    livraison: true,
-  },
-  {
-    id: 'res-2',
-    nom: 'Attiéké & Grill',
-    ville: 'Grand-Bassam',
-    cuisine: 'Ivoirienne',
-    ticketMoyen: 12000,
-    note: 9.1,
-    livraison: false,
-  },
-  {
-    id: 'res-3',
-    nom: 'Table Baoulé',
-    ville: 'Yamoussoukro',
-    cuisine: 'Africaine',
-    ticketMoyen: 9500,
-    note: 8.4,
-    livraison: true,
-  },
-  {
-    id: 'res-4',
-    nom: 'Lagune Fusion',
-    ville: 'Assinie',
-    cuisine: 'Fusion',
-    ticketMoyen: 18000,
-    note: 8.9,
-    livraison: true,
-  },
-];
-
-const dishes: Dish[] = [
-  {
-    id: 'dish-1',
-    nom: 'Garba thon + attiéké',
-    restaurant: 'Garba Signature',
-    ville: 'Abidjan',
-    cuisine: 'Street Food',
-    prix: 3500,
-    spicyLevel: 3,
-    livraison: true,
-  },
-  {
-    id: 'dish-2',
-    nom: 'Poisson braisé + attiéké',
-    restaurant: 'Attiéké & Grill',
-    ville: 'Grand-Bassam',
-    cuisine: 'Ivoirienne',
-    prix: 8500,
-    spicyLevel: 2,
-    livraison: false,
-  },
-  {
-    id: 'dish-3',
-    nom: 'Kedjenou de poulet',
-    restaurant: 'Table Baoulé',
-    ville: 'Yamoussoukro',
-    cuisine: 'Africaine',
-    prix: 6500,
-    spicyLevel: 4,
-    livraison: true,
-  },
-  {
-    id: 'dish-4',
-    nom: 'Alloco premium + grillades',
-    restaurant: 'Lagune Fusion',
-    ville: 'Assinie',
-    cuisine: 'Fusion',
-    prix: 7800,
-    spicyLevel: 2,
-    livraison: true,
-  },
-];
+type ApiDish = {
+  id: string;
+  nom: string;
+  description?: string | null;
+  cuisine: string;
+  ville: string;
+  prix: string;
+  spicyLevel: number;
+  livraison: boolean;
+  stock: number;
+  disponible: boolean;
+  photoUrl?: string | null;
+  restaurant: {
+    id: string;
+    nom: string;
+    email: string;
+  };
+};
 
 function formatMoney(value: number) {
   return `${new Intl.NumberFormat('fr-FR').format(value)} FCFA`;
@@ -117,6 +58,9 @@ export default function RestaurationPage() {
   const router = useRouter();
 
   const [view, setView] = useState<FoodView>('RESTAURANTS');
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [dishesLoading, setDishesLoading] = useState(true);
+  const [dishesError, setDishesError] = useState('');
   const [query, setQuery] = useState('');
   const [ville, setVille] = useState('Toutes');
   const [cuisine, setCuisine] = useState<'Toutes' | CuisineType>('Toutes');
@@ -124,35 +68,88 @@ export default function RestaurationPage() {
   const [noteMin, setNoteMin] = useState(8);
   const [spicyMax, setSpicyMax] = useState(5);
   const [livraisonOnly, setLivraisonOnly] = useState(false);
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState('');
-  const [feedback, setFeedback] = useState('');
+  const [loadingId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadSession() {
+    async function loadDishes() {
+      setDishesLoading(true);
+      setDishesError('');
+
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/restaurant-dishes');
+        const data = (await response.json()) as ApiDish[] | { error?: string };
 
         if (!response.ok) {
-          setSessionUserId(null);
+          setDishesError(
+            (data as { error?: string }).error ??
+              'Erreur de chargement des plats.',
+          );
+          setDishes([]);
           return;
         }
 
-        const data = (await response.json()) as { user?: { id?: string } };
-        setSessionUserId(data.user?.id ?? null);
+        const normalized = (data as ApiDish[]).map((item) => ({
+          id: item.id,
+          restaurantId: item.restaurant.id,
+          nom: item.nom,
+          restaurant: item.restaurant.nom,
+          ville: item.ville,
+          cuisine: item.cuisine,
+          prix: Number(item.prix),
+          spicyLevel: item.spicyLevel,
+          livraison: item.livraison,
+          stock: item.stock,
+          photoUrl: item.photoUrl,
+        }));
+
+        setDishes(normalized);
       } catch {
-        setSessionUserId(null);
+        setDishesError('Erreur réseau pendant le chargement des plats.');
+        setDishes([]);
+      } finally {
+        setDishesLoading(false);
       }
     }
 
-    void loadSession();
+    void loadDishes();
   }, []);
+
+  const restaurants = useMemo<Restaurant[]>(() => {
+    const byRestaurant = new Map<string, Dish[]>();
+
+    for (const dish of dishes) {
+      const list = byRestaurant.get(dish.restaurantId) ?? [];
+      list.push(dish);
+      byRestaurant.set(dish.restaurantId, list);
+    }
+
+    return [...byRestaurant.entries()].map(([restaurantId, items]) => {
+      const first = items[0];
+      const avgPrice =
+        items.reduce((sum, item) => sum + item.prix, 0) /
+        Math.max(1, items.length);
+
+      return {
+        id: restaurantId,
+        nom: first.restaurant,
+        ville: first.ville,
+        cuisine: first.cuisine,
+        ticketMoyen: Math.round(avgPrice),
+        note: 8.5,
+        livraison: items.some((item) => item.livraison),
+      };
+    });
+  }, [dishes]);
 
   const availableCities = useMemo(() => {
     const source = view === 'RESTAURANTS' ? restaurants : dishes;
     return ['Toutes', ...new Set(source.map((item) => item.ville))];
-  }, [view]);
+  }, [view, restaurants, dishes]);
+
+  const availableCuisines = useMemo(() => {
+    const source = view === 'RESTAURANTS' ? restaurants : dishes;
+    return ['Toutes', ...new Set(source.map((item) => item.cuisine))];
+  }, [view, restaurants, dishes]);
 
   const filteredRestaurants = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -179,7 +176,7 @@ export default function RestaurationPage() {
         matchesLivraison
       );
     });
-  }, [query, ville, cuisine, budgetMax, noteMin, livraisonOnly]);
+  }, [restaurants, query, ville, cuisine, budgetMax, noteMin, livraisonOnly]);
 
   const filteredDishes = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -206,7 +203,7 @@ export default function RestaurationPage() {
         matchesLivraison
       );
     });
-  }, [query, ville, cuisine, budgetMax, spicyMax, livraisonOnly]);
+  }, [dishes, query, ville, cuisine, budgetMax, spicyMax, livraisonOnly]);
 
   function switchView(next: FoodView) {
     setView(next);
@@ -217,65 +214,15 @@ export default function RestaurationPage() {
     setNoteMin(8);
     setSpicyMax(5);
     setLivraisonOnly(false);
-    setActionError('');
-    setFeedback('');
   }
 
-  async function handleAction(itemId: string) {
-    setActionError('');
-    setFeedback('');
-
-    if (!sessionUserId) {
-      router.push('/login');
+  function handleAction(itemId: string) {
+    if (view === 'RESTAURANTS') {
+      router.push(`/restauration/restaurant/${itemId}`);
       return;
     }
 
-    setLoadingId(itemId);
-
-    const restaurant = restaurants.find((item) => item.id === itemId);
-    const dish = dishes.find((item) => item.id === itemId);
-
-    const actionType = view === 'RESTAURANTS' ? 'FOOD_RESTAURANT' : 'FOOD_DISH';
-    const itemLabel = restaurant?.nom ?? dish?.nom ?? itemId;
-    const amount = restaurant?.ticketMoyen ?? dish?.prix ?? 1000;
-
-    try {
-      const response = await fetch('/api/tourist-actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actionType,
-          itemId,
-          itemLabel,
-          amount,
-          participants: 1,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        message?: string;
-        reference?: string;
-      };
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-
-        setActionError(data.error ?? 'Action impossible.');
-        return;
-      }
-
-      setFeedback(
-        `${data.message ?? 'Action confirmée.'} Réf: ${data.reference ?? 'N/A'}`,
-      );
-    } catch {
-      setActionError('Erreur réseau pendant l’action.');
-    } finally {
-      setLoadingId(null);
-    }
+    router.push(`/restauration/plat/${itemId}`);
   }
 
   return (
@@ -352,11 +299,11 @@ export default function RestaurationPage() {
               }
               className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
             >
-              <option value="Toutes">Toutes</option>
-              <option value="Ivoirienne">Ivoirienne</option>
-              <option value="Africaine">Africaine</option>
-              <option value="Street Food">Street Food</option>
-              <option value="Fusion">Fusion</option>
+              {availableCuisines.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -418,11 +365,9 @@ export default function RestaurationPage() {
         </aside>
 
         <div className="space-y-4">
-          {actionError ? <p className="text-sm text-red-600">{actionError}</p> : null}
-          {feedback ? (
-            <p className="text-sm text-emerald-600">{feedback}</p>
+          {dishesError && view === 'PLATS' ? (
+            <p className="text-sm text-red-600">{dishesError}</p>
           ) : null}
-
           {view === 'RESTAURANTS' ? (
             <>
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
@@ -463,12 +408,27 @@ export default function RestaurationPage() {
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
                 {filteredDishes.length} plat(s) trouvé(s)
               </p>
+              {dishesLoading ? (
+                <p className="text-sm text-zinc-500">Chargement des plats...</p>
+              ) : null}
               <section className="grid gap-4 md:grid-cols-2">
                 {filteredDishes.map((item) => (
                   <article
                     key={item.id}
                     className="space-y-3 rounded-2xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900"
                   >
+                    {item.photoUrl ? (
+                      <div className="relative h-36 w-full overflow-hidden rounded-xl">
+                        <Image
+                          src={item.photoUrl}
+                          alt={item.nom}
+                          fill
+                          unoptimized
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : null}
                     <h2 className="text-lg font-semibold">{item.nom}</h2>
                     <p className="text-sm text-zinc-600 dark:text-zinc-300">
                       {item.restaurant} • {item.cuisine}
@@ -476,6 +436,9 @@ export default function RestaurationPage() {
                     <p className="text-sm text-zinc-600 dark:text-zinc-300">
                       📍 {item.ville} • Épicé {item.spicyLevel}/5 •{' '}
                       {item.livraison ? 'Livraison' : 'Sur place'}
+                    </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      Stock: {item.stock}
                     </p>
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold">

@@ -2,79 +2,39 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 type ArticleProduct = {
   id: string;
   nom: string;
-  artisan: string;
+  artisan: {
+    nom: string;
+  };
   prix: number;
   region: string;
   culture: string;
   histoire: string;
+  stock: number;
+  imageUrl?: string;
 };
 
-const artisanProducts: ArticleProduct[] = [
-  {
-    id: 'p-1',
-    nom: 'Masque Dan sculpté main',
-    artisan: 'Atelier Yacouba',
-    prix: 45000,
-    region: 'Montagnes',
-    culture: 'Dan',
-    histoire:
-      'Le masque Dan accompagne les rites communautaires et symbolise le lien entre art, spiritualité et transmission.',
-  },
-  {
-    id: 'p-2',
-    nom: 'Pagne tissé Baoulé',
-    artisan: 'Coopérative N’Zi',
-    prix: 28000,
-    region: 'Lacs',
-    culture: 'Baoulé',
-    histoire:
-      'Le tissage baoulé valorise les savoir-faire féminins et les motifs identitaires transmis de génération en génération.',
-  },
-  {
-    id: 'p-3',
-    nom: 'Statuette Sénoufo en ébène',
-    artisan: 'Maison Koffi Art',
-    prix: 62000,
-    region: 'Savanes',
-    culture: 'Sénoufo',
-    histoire:
-      'La sculpture sénoufo incarne les valeurs de protection, d’autorité et d’ancrage ancestral au sein des villages.',
-  },
-  {
-    id: 'p-4',
-    nom: 'Parure Akan en perles',
-    artisan: 'Créations Adjoua',
-    prix: 35000,
-    region: 'Sud-Comoé',
-    culture: 'Akan',
-    histoire:
-      'Les parures en perles Akan sont liées aux cérémonies et à l’expression du statut social dans les cours royales.',
-  },
-  {
-    id: 'p-5',
-    nom: 'Tabouret royal Agni',
-    artisan: 'Art Bois Assouan',
-    prix: 52000,
-    region: 'Indénié-Djuablin',
-    culture: 'Agni',
-    histoire:
-      'Le tabouret royal est un objet de prestige, associé à la légitimité des chefs traditionnels dans la culture Agni.',
-  },
-  {
-    id: 'p-6',
-    nom: 'Tambour Attié décoratif',
-    artisan: 'Studio Ebrié Craft',
-    prix: 26000,
-    region: 'Lagunes',
-    culture: 'Attié',
-    histoire:
-      'Le tambour accompagne les célébrations locales et maintient vivant le langage rythmique propre aux communautés Attié.',
-  },
-];
+type ApiProduct = {
+  id: string;
+  nom: string;
+  description: string;
+  categorie: string;
+  regionOrigine?: string | null;
+  prix: string;
+  stock: number;
+  artisan?: {
+    nom: string;
+  };
+  medias?: Array<{
+    id: string;
+    url: string;
+    type: string;
+  }>;
+};
 
 const suggestedArticles = [
   {
@@ -103,110 +63,94 @@ function formatMoney(value: number) {
 
 export default function ArticlePage() {
   const router = useRouter();
+  const [products, setProducts] = useState<ArticleProduct[]>([]);
+  const [productsError, setProductsError] = useState('');
+  const [productsLoading, setProductsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('Toutes');
   const [culture, setCulture] = useState('Toutes');
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadSession() {
+    async function loadProducts() {
+      setProductsLoading(true);
+      setProductsError('');
+
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/artisan-products?status=ACTIVE');
+        const data = (await response.json()) as
+          | ApiProduct[]
+          | { error?: string };
 
         if (!response.ok) {
-          setSessionUserId(null);
+          setProductsError(
+            (data as { error?: string }).error ??
+              'Erreur de chargement des produits.',
+          );
+          setProducts([]);
           return;
         }
 
-        const data = (await response.json()) as { user?: { id?: string } };
-        setSessionUserId(data.user?.id ?? null);
+        const normalized = (data as ApiProduct[]).map((item) => ({
+          id: item.id,
+          nom: item.nom,
+          artisan: {
+            nom: item.artisan?.nom ?? 'Artisan',
+          },
+          prix: Number(item.prix),
+          region: item.regionOrigine ?? 'Non précisée',
+          culture: item.categorie,
+          histoire: item.description,
+          stock: item.stock,
+          imageUrl: item.medias?.find((media) => media.type === 'IMAGE')?.url,
+        }));
+
+        setProducts(normalized);
       } catch {
-        setSessionUserId(null);
+        setProductsError('Erreur réseau pendant le chargement des produits.');
+        setProducts([]);
+      } finally {
+        setProductsLoading(false);
       }
     }
 
-    void loadSession();
+    void loadProducts();
   }, []);
 
   const regions = useMemo(
-    () => ['Toutes', ...new Set(artisanProducts.map((item) => item.region))],
-    [],
+    () => ['Toutes', ...new Set(products.map((item) => item.region))],
+    [products],
   );
   const cultures = useMemo(
-    () => ['Toutes', ...new Set(artisanProducts.map((item) => item.culture))],
-    [],
+    () => ['Toutes', ...new Set(products.map((item) => item.culture))],
+    [products],
   );
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return artisanProducts.filter((item) => {
+    return products.filter((item) => {
       const matchesSearch =
         !normalizedSearch ||
-        `${item.nom} ${item.artisan} ${item.region} ${item.culture}`
+        `${item.nom} ${item.artisan.nom} ${item.region} ${item.culture}`
           .toLowerCase()
           .includes(normalizedSearch);
       const matchesRegion = region === 'Toutes' ? true : item.region === region;
       const matchesCulture =
         culture === 'Toutes' ? true : item.culture === culture;
 
-      return matchesSearch && matchesRegion && matchesCulture;
+      return matchesSearch && matchesRegion && matchesCulture && item.stock > 0;
     });
-  }, [search, region, culture]);
+  }, [products, search, region, culture]);
 
   async function handleBuy(productId: string) {
     setActionError('');
     setActionSuccess('');
 
-    if (!sessionUserId) {
-      router.push('/login');
-      return;
-    }
-
     setLoadingProductId(productId);
-
-    try {
-      const product = artisanProducts.find((item) => item.id === productId);
-
-      const response = await fetch('/api/tourist-actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actionType: 'SOUVENIR_PURCHASE',
-          itemId: productId,
-          itemLabel: product?.nom ?? productId,
-          amount: product?.prix ?? 1000,
-          quantity: 1,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        message?: string;
-        reference?: string;
-      };
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-
-        setActionError(data.error ?? 'Achat impossible.');
-        return;
-      }
-
-      setActionSuccess(
-        `${data.message ?? 'Achat confirmé.'} Réf: ${data.reference ?? 'N/A'}`,
-      );
-    } catch {
-      setActionError('Erreur réseau pendant l’achat.');
-    } finally {
-      setLoadingProductId(null);
-    }
+    router.push(`/article/souvenir/${productId}`);
   }
 
   return (
@@ -254,6 +198,9 @@ export default function ArticlePage() {
       </section>
 
       <section className="space-y-3">
+        {productsError ? (
+          <p className="text-sm text-red-600">{productsError}</p>
+        ) : null}
         {actionError ? (
           <p className="text-sm text-red-600">{actionError}</p>
         ) : null}
@@ -261,42 +208,64 @@ export default function ArticlePage() {
           <p className="text-sm text-emerald-600">{actionSuccess}</p>
         ) : null}
 
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          {filteredProducts.length} produit(s) trouvé(s)
-        </p>
+        {productsLoading ? (
+          <p className="text-sm text-zinc-500">Chargement des produits...</p>
+        ) : (
+          <>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              {filteredProducts.length} produit(s) trouvé(s)
+            </p>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredProducts.map((product) => (
-            <article
-              key={product.id}
-              className="space-y-3 rounded-2xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900"
-            >
-              <div className="h-32 rounded-xl bg-zinc-100 dark:bg-zinc-800" />
-              <h2 className="font-semibold">{product.nom}</h2>
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                {product.artisan}
-              </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Région: {product.region} • Culture: {product.culture}
-              </p>
-              <p className="text-sm font-semibold">
-                {formatMoney(product.prix)}
-              </p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                {product.histoire}
-              </p>
-              <button
-                onClick={() => handleBuy(product.id)}
-                disabled={loadingProductId === product.id}
-                className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
-              >
-                {loadingProductId === product.id
-                  ? 'Achat...'
-                  : 'Acheter ce souvenir'}
-              </button>
-            </article>
-          ))}
-        </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredProducts.map((product) => (
+                <article
+                  key={product.id}
+                  className="space-y-3 rounded-2xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900"
+                >
+                  {product.imageUrl ? (
+                    <div className="relative h-32 overflow-hidden rounded-xl">
+                      <Image
+                        src={product.imageUrl}
+                        alt={product.nom}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-32 rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+                  )}
+                  <h2 className="font-semibold">{product.nom}</h2>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                    {product.artisan.nom}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Région: {product.region} • Culture: {product.culture}
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {formatMoney(product.prix)}
+                  </p>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                    {product.histoire}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Stock: {product.stock}
+                  </p>
+                  <button
+                    onClick={() => handleBuy(product.id)}
+                    disabled={loadingProductId === product.id}
+                    className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                  >
+                    {loadingProductId === product.id
+                      ? 'Achat...'
+                      : 'Acheter ce souvenir'}
+                  </button>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       <section className="space-y-4 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900">

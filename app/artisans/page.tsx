@@ -9,6 +9,9 @@ const USE_MOCK_DATA = true;
 type Product = {
   id: string;
   nom: string;
+  description?: string;
+  region?: string;
+  culture?: string;
   prix: string;
   status: string;
   certificatBlockchain: string | null;
@@ -164,6 +167,17 @@ export default function ArtisansPage() {
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
                 {product.artisan.nom}
               </p>
+              {product.region || product.culture ? (
+                <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                  Région: {product.region ?? 'N/A'} • Culture:{' '}
+                  {product.culture ?? 'N/A'}
+                </p>
+              ) : null}
+              {product.description ? (
+                <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                  {product.description}
+                </p>
+              ) : null}
               <p className="text-sm font-medium">
                 {formatMoney(product.prix)} FCFA
               </p>

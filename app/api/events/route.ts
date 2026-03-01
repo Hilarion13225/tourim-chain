@@ -10,6 +10,11 @@ function isValidEventStatus(
   );
 }
 
+function isUnknownPhotoUrlArgumentError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('Unknown argument `photoUrl`');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -63,22 +68,26 @@ export async function POST(request: NextRequest) {
     const {
       organisateurId,
       nom,
+      photoUrl,
       description,
       lieu,
       region,
       startAt,
       endAt,
       capacity,
+      ticketPrice,
       status,
     } = body as {
       organisateurId?: string;
       nom?: string;
+      photoUrl?: string;
       description?: string;
       lieu?: string;
       region?: string;
       startAt?: string;
       endAt?: string;
       capacity?: number;
+      ticketPrice?: number;
       status?: string;
     };
 
@@ -105,19 +114,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'status invalide' }, { status: 400 });
     }
 
-    const event = await prisma.event.create({
-      data: {
-        organisateurId,
-        nom,
-        description,
-        lieu,
-        region,
-        startAt: new Date(startAt),
-        endAt: new Date(endAt),
-        capacity,
-        ...(status ? { status } : {}),
-      },
-    });
+    const createData = {
+      organisateurId,
+      nom,
+      photoUrl,
+      description,
+      lieu,
+      region,
+      startAt: new Date(startAt),
+      endAt: new Date(endAt),
+      capacity,
+      ...(ticketPrice !== undefined
+        ? {
+            ticketTypes: {
+              create: {
+                nom: 'Standard',
+                prix: ticketPrice,
+                quantityTotal: capacity,
+              },
+            },
+          }
+        : {}),
+      ...(status ? { status } : {}),
+    };
+
+    let event;
+
+    try {
+      event = await prisma.event.create({
+        data: createData,
+        include: {
+          ticketTypes: {
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+    } catch (error) {
+      if (!isUnknownPhotoUrlArgumentError(error)) {
+        throw error;
+      }
+
+      const fallbackData = { ...createData };
+      delete fallbackData.photoUrl;
+
+      event = await prisma.event.create({
+        data: fallbackData,
+        include: {
+          ticketTypes: {
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+    }
 
     return NextResponse.json(event, { status: 201 });
   } catch (error) {

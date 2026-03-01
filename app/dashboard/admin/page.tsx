@@ -1,29 +1,29 @@
-import { redirect } from 'next/navigation';
-import { getRoleDashboardPath, getSessionUser } from '@/lib/session';
 import DashboardSummaryClient from '@/app/dashboard/_components/dashboard-summary-client';
-import AdminCrudClient from '@/app/dashboard/_components/admin-crud-client';
-import AdminNationalAnalyticsClient from '@/app/dashboard/_components/admin-national-analytics-client';
+import Link from 'next/link';
+import { getSessionUser } from '@/lib/session';
 import DashboardRoleHero from '@/app/dashboard/_components/dashboard-role-hero';
 
 export default async function AdminDashboardPage() {
   const sessionUser = await getSessionUser();
 
   if (!sessionUser) {
-    redirect('/login');
-  }
-
-  if (sessionUser.role !== 'ADMIN') {
-    redirect(getRoleDashboardPath(sessionUser.role));
+    return null;
   }
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-8 px-6 py-10 lg:px-10">
+    <>
       <DashboardRoleHero
         title="Dashboard Admin"
         subtitle="Supervisez la plateforme nationale, les validations et les performances multi-acteurs."
         actions={[
-          { label: 'Valider acteurs', href: '/dashboard/admin' },
-          { label: 'Audit plateforme', href: '/dashboard/admin' },
+          {
+            label: 'Valider acteurs',
+            href: '/dashboard/admin/validation-acteurs',
+          },
+          {
+            label: 'Analytics nationaux',
+            href: '/dashboard/admin/analytics-nationaux',
+          },
         ]}
         stats={[
           { label: 'Acteurs en attente', value: '23' },
@@ -32,8 +32,32 @@ export default async function AdminDashboardPage() {
         ]}
       />
       <DashboardSummaryClient role="ADMIN" userId={sessionUser.userId} />
-      <AdminNationalAnalyticsClient />
-      <AdminCrudClient />
-    </main>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Link
+          href="/dashboard/admin/validation-acteurs"
+          className="rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-950 dark:text-zinc-200"
+        >
+          Validation acteurs
+        </Link>
+        <Link
+          href="/dashboard/admin/analytics-nationaux"
+          className="rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-950 dark:text-zinc-200"
+        >
+          Analytics nationaux
+        </Link>
+        <Link
+          href="/dashboard/admin/alertes-urgence"
+          className="rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-950 dark:text-zinc-200"
+        >
+          Alertes urgence
+        </Link>
+        <Link
+          href="/dashboard/admin/reservations"
+          className="rounded-2xl border border-black/10 bg-white p-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-950 dark:text-zinc-200"
+        >
+          Réservations
+        </Link>
+      </section>
+    </>
   );
 }

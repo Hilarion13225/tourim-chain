@@ -26,6 +26,9 @@ export type MockEvent = {
 export type MockProduct = {
   id: string;
   nom: string;
+  description?: string;
+  region?: string;
+  culture?: string;
   prix: string;
   status: string;
   certificatBlockchain: string | null;
@@ -123,7 +126,11 @@ export const mockEvents: MockEvent[] = [
 export const mockProducts: MockProduct[] = [
   {
     id: 'prod-1',
-    nom: 'Masque traditionnel Dan',
+    nom: 'Masque Dan sculpté main',
+    description:
+      'Le masque Dan accompagne les rites communautaires et symbolise le lien entre art, spiritualité et transmission.',
+    region: 'Montagnes',
+    culture: 'Dan',
     prix: '45000',
     status: 'AVAILABLE',
     certificatBlockchain: 'CERT-DAN-001',

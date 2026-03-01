@@ -70,10 +70,7 @@ export default function ReservationPage() {
     'Toutes' | Vehicle['transmission']
   >('Toutes');
   const [climOnly, setClimOnly] = useState(false);
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState('');
-  const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
     async function loadAccommodations() {
@@ -114,26 +111,6 @@ export default function ReservationPage() {
     }
 
     void loadAccommodations();
-  }, []);
-
-  useEffect(() => {
-    async function loadSession() {
-      try {
-        const response = await fetch('/api/auth/me');
-
-        if (!response.ok) {
-          setSessionUserId(null);
-          return;
-        }
-
-        const data = (await response.json()) as { user?: { id?: string } };
-        setSessionUserId(data.user?.id ?? null);
-      } catch {
-        setSessionUserId(null);
-      }
-    }
-
-    void loadSession();
   }, []);
 
   useEffect(() => {
@@ -246,66 +223,17 @@ export default function ReservationPage() {
     setPetitDejOnly(false);
     setTransmission('Toutes');
     setClimOnly(false);
-    setActionError('');
-    setFeedback('');
   }
 
   async function handleBook(itemId: string) {
-    setActionError('');
-    setFeedback('');
+    setLoadingId(itemId);
 
-    if (!sessionUserId) {
-      router.push('/login');
+    if (serviceType === 'HEBERGEMENT') {
+      router.push(`/reservation/hebergement/${itemId}`);
       return;
     }
 
-    const accommodation = accommodations.find((item) => item.id === itemId);
-    const vehicle = vehicles.find((item) => item.id === itemId);
-
-    const actionType =
-      serviceType === 'HEBERGEMENT' ? 'ACCOMMODATION' : 'VEHICLE_RENTAL';
-    const itemLabel = accommodation?.nom ?? vehicle?.nom ?? itemId;
-    const amount = accommodation?.prixNuit ?? vehicle?.prixJour ?? 10000;
-
-    setLoadingId(itemId);
-
-    try {
-      const response = await fetch('/api/tourist-actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actionType,
-          itemId,
-          itemLabel,
-          amount,
-          participants: 1,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        message?: string;
-        reference?: string;
-      };
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-
-        setActionError(data.error ?? 'Action impossible.');
-        return;
-      }
-
-      setFeedback(
-        `${data.message ?? 'Action confirmée.'} Réf: ${data.reference ?? 'N/A'}`,
-      );
-    } catch {
-      setActionError('Erreur réseau pendant l’action.');
-    } finally {
-      setLoadingId(null);
-    }
+    router.push(`/reservation/vehicule/${itemId}`);
   }
 
   return (
@@ -464,13 +392,6 @@ export default function ReservationPage() {
           {vehiclesError && serviceType === 'VEHICULE' ? (
             <p className="text-sm text-red-600">{vehiclesError}</p>
           ) : null}
-          {actionError ? (
-            <p className="text-sm text-red-600">{actionError}</p>
-          ) : null}
-          {feedback ? (
-            <p className="text-sm text-emerald-600">{feedback}</p>
-          ) : null}
-
           {serviceType === 'HEBERGEMENT' ? (
             <>
               <p className="text-sm text-zinc-600 dark:text-zinc-300">

@@ -20,6 +20,7 @@ enum UserRole {
   ORGANIZER
   ACCOMMODATION_COMPANY
   VEHICLE_RENTAL_COMPANY
+  RESTAURANT
   ADMIN
 }
 
@@ -146,6 +147,11 @@ model User {
   adminActions              AdminAction[]
   accommodationsOwned       AccommodationListing[]
   vehiclesOwned             VehicleRentalListing[]
+  restaurantDishesOwned     RestaurantDish[]        @relation("RestaurantOwnerDishes")
+  restaurantOrdersAsTourist RestaurantOrder[]       @relation("RestaurantOrderTourist")
+  restaurantOrdersAsOwner   RestaurantOrder[]       @relation("RestaurantOrderRestaurant")
+  emergencyAlertsReported   EmergencyAlert[]
+  analyticsEvents           AnalyticsEvent[]
 }
 
 model TouristSite {
@@ -346,6 +352,7 @@ model Event {
   id                  String          @id @default(cuid())
   organisateurId      String
   nom                 String
+  photoUrl            String?
   description         String
   lieu                String
   region              String
@@ -494,6 +501,50 @@ model MarketplaceOrderItem {
   @@index([productId])
 }
 
+model RestaurantDish {
+  id             String            @id @default(cuid())
+  restaurantId   String
+  nom            String
+  description    String?
+  cuisine        String
+  ville          String
+  prix           Decimal           @db.Decimal(10, 2)
+  spicyLevel     Int               @default(1)
+  livraison      Boolean           @default(false)
+  stock          Int               @default(0)
+  disponible     Boolean           @default(true)
+  photoUrl       String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  restaurant     User              @relation("RestaurantOwnerDishes", fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders         RestaurantOrder[]
+
+  @@index([restaurantId])
+  @@index([ville])
+  @@index([disponible])
+}
+
+model RestaurantOrder {
+  id             String         @id @default(cuid())
+  restaurantId   String
+  touristId      String
+  dishId         String
+  quantity       Int
+  unitPrice      Decimal        @db.Decimal(10, 2)
+  totalAmount    Decimal        @db.Decimal(10, 2)
+  status         OrderStatus    @default(PENDING)
+  paymentStatus  PaymentStatus  @default(UNPAID)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  restaurant     User           @relation("RestaurantOrderRestaurant", fields: [restaurantId], references: [id], onDelete: Cascade)
+  tourist        User           @relation("RestaurantOrderTourist", fields: [touristId], references: [id], onDelete: Cascade)
+  dish           RestaurantDish @relation(fields: [dishId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId])
+  @@index([touristId])
+  @@index([dishId])
+}
+
 model Review {
   id                  String          @id @default(cuid())
   authorId            String
@@ -597,4 +648,41 @@ model AdminAction {
 
   @@index([adminId])
   @@index([targetType, targetId])
+}
+
+model EmergencyAlert {
+  id                  String    @id @default(cuid())
+  touristId           String
+  issueType           String
+  description         String
+  severity            String    @default("MEDIUM")
+  latitude            Decimal?  @db.Decimal(10, 7)
+  longitude           Decimal?  @db.Decimal(10, 7)
+  locationAccuracyM   Int?
+  contactPhone        String?
+  status              String    @default("OPEN")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  tourist             User      @relation(fields: [touristId], references: [id], onDelete: Cascade)
+
+  @@index([touristId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AnalyticsEvent {
+  id                  String    @id @default(cuid())
+  userId              String?
+  eventType           String
+  module              String
+  amount              Decimal?  @db.Decimal(12, 2)
+  success             Boolean   @default(true)
+  metadata            Json?
+  createdAt           DateTime  @default(now())
+  user                User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([eventType])
+  @@index([module])
+  @@index([userId])
 }

@@ -2,9 +2,6 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { filterMockSites } from '@/lib/mock-tourism-data';
-
-const USE_MOCK_DATA = true;
 
 type Site = {
   id: string;
@@ -30,13 +27,6 @@ export default function ExplorerPage() {
   async function loadSites() {
     setIsLoading(true);
     setError('');
-
-    if (USE_MOCK_DATA) {
-      const filtered = filterMockSites({ query, region, categorie });
-      setSites(filtered);
-      setIsLoading(false);
-      return;
-    }
 
     try {
       const params = new URLSearchParams();
@@ -108,31 +98,39 @@ export default function ExplorerPage() {
 
     setLoadingSiteId(siteId);
 
-    if (USE_MOCK_DATA) {
-      setActionSuccess(`Réservation démo confirmée (#DEMO-${siteId}).`);
-      setLoadingSiteId(null);
-      return;
-    }
-
     try {
-      const response = await fetch('/api/bookings/quick', {
+      const site = sites.find((item) => item.id === siteId);
+
+      const response = await fetch('/api/tourist-actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId, participants: 1 }),
+        body: JSON.stringify({
+          actionType: 'TOURISM_ACTIVITY',
+          itemId: siteId,
+          itemLabel: site?.nom ?? siteId,
+          amount: 25000,
+          participants: 1,
+        }),
       });
 
       const data = (await response.json()) as {
         error?: string;
-        booking?: { id?: string };
+        message?: string;
+        reference?: string;
       };
 
       if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/login');
+          return;
+        }
+
         setActionError(data.error ?? 'Réservation impossible');
         return;
       }
 
       setActionSuccess(
-        `Réservation confirmée (#${data.booking?.id ?? 'N/A'}).`,
+        `${data.message ?? 'Réservation confirmée.'} Réf: ${data.reference ?? 'N/A'}.`,
       );
     } catch {
       setActionError('Erreur réseau pendant la réservation.');

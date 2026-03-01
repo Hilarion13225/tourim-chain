@@ -118,6 +118,19 @@ npm install
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME?schema=public"
 ```
 
+### Configuration blockchain (optionnelle)
+
+Pour activer l’ancrage on-chain (EVM), ajoutez aussi dans `.env`:
+
+```bash
+BLOCKCHAIN_RPC_URL="https://votre-rpc-evm"
+BLOCKCHAIN_PRIVATE_KEY="0x..."
+BLOCKCHAIN_EXPLORER_BASE_URL="https://sepolia.etherscan.io"
+```
+
+- Si ces variables sont absentes, l’application reste fonctionnelle en mode fallback `OFFCHAIN`.
+- Les preuves restent enregistrées et vérifiables via les endpoints blockchain internes.
+
 1. Créer la migration initiale:
 
 ```bash

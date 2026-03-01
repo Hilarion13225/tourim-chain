@@ -46,11 +46,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nom, email, password, role } = body as {
+    const { nom, email, password, role, guideRegion } = body as {
       nom?: string;
       email?: string;
       password?: string;
       role?: string;
+      guideRegion?: string;
     };
 
     if (!nom || !email || !password || !role) {
@@ -80,6 +81,15 @@ export async function POST(request: NextRequest) {
         email,
         passwordHash,
         role,
+        ...(role === UserRole.GUIDE
+          ? {
+              guideProfile: {
+                create: {
+                  region: guideRegion?.trim() || null,
+                },
+              },
+            }
+          : {}),
       },
       select: {
         id: true,

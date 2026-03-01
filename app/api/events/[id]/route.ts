@@ -10,6 +10,11 @@ function isValidEventStatus(
   );
 }
 
+function isUnknownPhotoUrlArgumentError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('Unknown argument `photoUrl`');
+}
+
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -44,37 +49,101 @@ export async function PATCH(
   try {
     const { id } = await context.params;
     const body = await request.json();
-    const { nom, description, lieu, region, startAt, endAt, capacity, status } =
-      body as {
-        nom?: string;
-        description?: string;
-        lieu?: string;
-        region?: string;
-        startAt?: string;
-        endAt?: string;
-        capacity?: number;
-        status?: string;
-      };
+    const {
+      nom,
+      photoUrl,
+      description,
+      lieu,
+      region,
+      startAt,
+      endAt,
+      capacity,
+      ticketPrice,
+      status,
+    } = body as {
+      nom?: string;
+      photoUrl?: string;
+      description?: string;
+      lieu?: string;
+      region?: string;
+      startAt?: string;
+      endAt?: string;
+      capacity?: number;
+      ticketPrice?: number;
+      status?: string;
+    };
 
     if (status && !isValidEventStatus(status)) {
       return NextResponse.json({ error: 'status invalide' }, { status: 400 });
     }
 
-    const updatedEvent = await prisma.event.update({
-      where: { id },
-      data: {
-        ...(nom ? { nom } : {}),
-        ...(description ? { description } : {}),
-        ...(lieu ? { lieu } : {}),
-        ...(region ? { region } : {}),
-        ...(startAt ? { startAt: new Date(startAt) } : {}),
-        ...(endAt ? { endAt: new Date(endAt) } : {}),
-        ...(capacity !== undefined ? { capacity } : {}),
-        ...(status && isValidEventStatus(status) ? { status } : {}),
+    const updateData = {
+      ...(nom ? { nom } : {}),
+      ...(photoUrl !== undefined ? { photoUrl } : {}),
+      ...(description ? { description } : {}),
+      ...(lieu ? { lieu } : {}),
+      ...(region ? { region } : {}),
+      ...(startAt ? { startAt: new Date(startAt) } : {}),
+      ...(endAt ? { endAt: new Date(endAt) } : {}),
+      ...(capacity !== undefined ? { capacity } : {}),
+      ...(status && isValidEventStatus(status) ? { status } : {}),
+    };
+
+    let updatedEvent;
+
+    try {
+      updatedEvent = await prisma.event.update({
+        where: { id },
+        data: updateData,
+      });
+    } catch (error) {
+      if (!isUnknownPhotoUrlArgumentError(error) || photoUrl === undefined) {
+        throw error;
+      }
+
+      const fallbackData = { ...updateData };
+      delete fallbackData.photoUrl;
+
+      updatedEvent = await prisma.event.update({
+        where: { id },
+        data: fallbackData,
+      });
+    }
+
+    if (ticketPrice !== undefined) {
+      const standardTicket = await prisma.eventTicketType.findFirst({
+        where: { eventId: id },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (standardTicket) {
+        await prisma.eventTicketType.update({
+          where: { id: standardTicket.id },
+          data: {
+            prix: ticketPrice,
+            ...(capacity !== undefined ? { quantityTotal: capacity } : {}),
+          },
+        });
+      } else {
+        await prisma.eventTicketType.create({
+          data: {
+            eventId: id,
+            nom: 'Standard',
+            prix: ticketPrice,
+            quantityTotal: capacity ?? 100,
+          },
+        });
+      }
+    }
+
+    const reloaded = await prisma.event.findUnique({
+      where: { id: updatedEvent.id },
+      include: {
+        ticketTypes: true,
       },
     });
 
-    return NextResponse.json(updatedEvent);
+    return NextResponse.json(reloaded ?? updatedEvent);
   } catch (error) {
     console.error('PATCH /api/events/[id]', error);
     return NextResponse.json({ error: 'erreur serveur' }, { status: 500 });

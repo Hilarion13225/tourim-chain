@@ -2,268 +2,236 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
-type TourismCategory =
-  | 'CULTUREL'
-  | 'BALNEAIRE'
-  | 'ECOTOURISME'
-  | 'URBAIN_EVENT';
+type TourismType = 'CULTUREL' | 'BALNEAIRE' | 'ECOTOURISME' | 'URBAN';
+type TourismFilterType = 'TOUS' | TourismType;
+type SortType =
+  | 'RECENT'
+  | 'PRIX_ASC'
+  | 'PRIX_DESC'
+  | 'DUREE_ASC'
+  | 'DUREE_DESC'
+  | 'NOM_ASC';
 
-type TourismActivity = {
+type ApiSite = {
   id: string;
-  titre: string;
-  category: TourismCategory;
+  nom: string;
   region: string;
-  prixXof: number;
-  dureeHeures: number;
-  resume: string;
+  description: string;
+  categorieTourisme: string;
+  medias?: Array<{
+    id: string;
+    url: string;
+    type: string;
+  }>;
 };
 
-const activities: TourismActivity[] = [
-  {
-    id: 'act-1',
-    titre: 'Circuit Patrimoine de Grand-Bassam',
-    category: 'CULTUREL',
-    region: 'Sud-Comoé',
-    prixXof: 18000,
-    dureeHeures: 4,
-    resume:
-      'Visite guidée du patrimoine historique, artisanat local et immersion culturelle.',
-  },
-  {
-    id: 'act-2',
-    titre: 'Atelier masques et danses traditionnelles',
-    category: 'CULTUREL',
-    region: 'Abidjan',
-    prixXof: 14000,
-    dureeHeures: 3,
-    resume:
-      'Découverte des arts traditionnels ivoiriens avec initiation pratique.',
-  },
-  {
-    id: 'act-3',
-    titre: 'Journée détente à Assinie',
-    category: 'BALNEAIRE',
-    region: 'Lagunes',
-    prixXof: 29000,
-    dureeHeures: 8,
-    resume: 'Plages, sports nautiques et déjeuner en bord de mer.',
-  },
-  {
-    id: 'act-4',
-    titre: 'Excursion premium Grand-Béréby',
-    category: 'BALNEAIRE',
-    region: 'Bas-Sassandra',
-    prixXof: 32000,
-    dureeHeures: 10,
-    resume: 'Escapade balnéaire avec baignade, bateau et détente tropicale.',
-  },
-  {
-    id: 'act-5',
-    titre: 'Safari responsable au Parc de Taï',
-    category: 'ECOTOURISME',
-    region: 'Bas-Sassandra',
-    prixXof: 26000,
-    dureeHeures: 7,
-    resume:
-      'Observation de la biodiversité avec guide certifié et approche durable.',
-  },
-  {
-    id: 'act-6',
-    titre: 'Randonnée nature au Parc de la Comoé',
-    category: 'ECOTOURISME',
-    region: 'Zanzan',
-    prixXof: 21000,
-    dureeHeures: 6,
-    resume:
-      'Parcours écotouristique entre savane, faune et sensibilisation environnementale.',
-  },
-  {
-    id: 'act-7',
-    titre: 'Abidjan by night & gastronomie',
-    category: 'URBAIN_EVENT',
-    region: 'Abidjan',
-    prixXof: 24000,
-    dureeHeures: 5,
-    resume:
-      'Soirée urbaine avec spots culinaires, musique live et lieux emblématiques.',
-  },
-  {
-    id: 'act-8',
-    titre: 'Pack festival urbain (FEMUA)',
-    category: 'URBAIN_EVENT',
-    region: 'Abidjan',
-    prixXof: 35000,
-    dureeHeures: 9,
-    resume: 'Accès festival, navette et accompagnement événementiel.',
-  },
-];
-
-const categoryMeta: Record<TourismCategory, { label: string; hint: string }> = {
-  CULTUREL: {
-    label: 'Tourisme culturel',
-    hint: 'Patrimoines, arts, festivals, traditions',
-  },
-  BALNEAIRE: {
-    label: 'Tourisme balnéaire',
-    hint: 'Plages, détente, loisirs nautiques',
-  },
-  ECOTOURISME: {
-    label: 'Écotourisme',
-    hint: 'Nature, parcs, biodiversité durable',
-  },
-  URBAIN_EVENT: {
-    label: 'Tourisme urbain & événementiel',
-    hint: 'Ville, nightlife, concerts, business',
-  },
+type TourismSite = {
+  id: string;
+  nom: string;
+  region: string;
+  type: TourismType;
+  typeLabel: string;
+  summary: string;
+  priceXof: number;
+  durationHours: number;
+  photoUrl?: string | null;
 };
 
-const regions = [
-  'Toutes',
-  'Abidjan',
-  'Sud-Comoé',
-  'Lagunes',
-  'Bas-Sassandra',
-  'Zanzan',
-];
+function formatXof(value: number) {
+  return `${new Intl.NumberFormat('fr-FR').format(value)} XOF`;
+}
 
-function formatPrix(prixXof: number) {
-  return `${new Intl.NumberFormat('fr-FR').format(prixXof)} XOF`;
+function mapCategoryToType(category: string): TourismType {
+  switch (category) {
+    case 'CULTURE':
+    case 'HERITAGE':
+    case 'RELIGIOUS':
+      return 'CULTUREL';
+    case 'BEACH':
+      return 'BALNEAIRE';
+    case 'NATURE':
+      return 'ECOTOURISME';
+    default:
+      return 'URBAN';
+  }
+}
+
+function typeLabel(type: TourismType) {
+  switch (type) {
+    case 'CULTUREL':
+      return 'Culturel';
+    case 'BALNEAIRE':
+      return 'Balnéaire';
+    case 'ECOTOURISME':
+      return 'Écotourisme';
+    case 'URBAN':
+      return 'Urban';
+  }
+}
+
+function parseTourismMeta(description: string) {
+  const fallback = {
+    summary: description,
+    priceXof: 15000,
+    durationHours: 4,
+  };
+
+  if (!description.startsWith('__TOURISM_META__')) {
+    return fallback;
+  }
+
+  const firstLineBreak = description.indexOf('\n');
+  const metaLine =
+    firstLineBreak >= 0 ? description.slice(0, firstLineBreak) : description;
+  const rawJson = metaLine.replace('__TOURISM_META__', '');
+  const summary =
+    firstLineBreak >= 0 ? description.slice(firstLineBreak + 1) : '';
+
+  try {
+    const parsed = JSON.parse(rawJson) as {
+      priceXof?: number;
+      durationHours?: number;
+    };
+
+    return {
+      summary: summary || fallback.summary,
+      priceXof: Number(parsed.priceXof ?? fallback.priceXof),
+      durationHours: Number(parsed.durationHours ?? fallback.durationHours),
+    };
+  } catch {
+    return fallback;
+  }
 }
 
 export default function TourismePage() {
   const router = useRouter();
+  const [sites, setSites] = useState<TourismSite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sitesError, setSitesError] = useState('');
+  const [tourismType, setTourismType] = useState<TourismFilterType>('TOUS');
   const [query, setQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<
-    TourismCategory[]
-  >(['CULTUREL', 'BALNEAIRE', 'ECOTOURISME', 'URBAIN_EVENT']);
   const [region, setRegion] = useState('Toutes');
-  const [budgetMax, setBudgetMax] = useState(40000);
-  const [dureeMax, setDureeMax] = useState(12);
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  const [reserveError, setReserveError] = useState('');
-  const [reserveMessage, setReserveMessage] = useState('');
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [budgetMax, setBudgetMax] = useState(80000);
+  const [durationMax, setDurationMax] = useState(12);
+  const [sortType, setSortType] = useState<SortType>('RECENT');
 
   useEffect(() => {
-    async function loadSession() {
+    async function loadSites() {
+      setLoading(true);
+
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/sites');
+        const data = (await response.json()) as ApiSite[] | { error?: string };
 
         if (!response.ok) {
-          setSessionUserId(null);
+          setSitesError(
+            (data as { error?: string }).error ?? 'Erreur chargement tourisme.',
+          );
+          setSites([]);
           return;
         }
 
-        const data = (await response.json()) as { user?: { id?: string } };
-        setSessionUserId(data.user?.id ?? null);
+        const normalized = (data as ApiSite[]).map((item) => {
+          const meta = parseTourismMeta(item.description);
+          const mappedType = mapCategoryToType(item.categorieTourisme);
+          const imageMedia = item.medias?.find(
+            (media) => media.type === 'IMAGE',
+          );
+
+          return {
+            id: item.id,
+            nom: item.nom,
+            region: item.region,
+            type: mappedType,
+            typeLabel: typeLabel(mappedType),
+            summary: meta.summary,
+            priceXof: Number.isFinite(meta.priceXof) ? meta.priceXof : 15000,
+            durationHours: Number.isFinite(meta.durationHours)
+              ? meta.durationHours
+              : 4,
+            photoUrl: imageMedia?.url,
+          } as TourismSite;
+        });
+
+        setSites(normalized);
+        setSitesError('');
       } catch {
-        setSessionUserId(null);
+        setSitesError('Erreur chargement tourisme.');
+        setSites([]);
+      } finally {
+        setLoading(false);
       }
     }
 
-    void loadSession();
+    void loadSites();
   }, []);
 
-  function toggleCategory(category: TourismCategory) {
-    setSelectedCategories((current) => {
-      if (current.includes(category)) {
-        const next = current.filter((value) => value !== category);
-        return next.length > 0 ? next : current;
-      }
+  const availableRegions = useMemo(() => {
+    const scoped =
+      tourismType === 'TOUS'
+        ? sites
+        : sites.filter((item) => item.type === tourismType);
+    return ['Toutes', ...new Set(scoped.map((item) => item.region))];
+  }, [sites, tourismType]);
 
-      return [...current, category];
-    });
-  }
-
-  function resetFilters() {
-    setQuery('');
-    setSelectedCategories([
-      'CULTUREL',
-      'BALNEAIRE',
-      'ECOTOURISME',
-      'URBAIN_EVENT',
-    ]);
-    setRegion('Toutes');
-    setBudgetMax(40000);
-    setDureeMax(12);
-  }
-
-  const filteredActivities = useMemo(() => {
+  const filteredSites = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return activities.filter((activity) => {
+    const scoped =
+      tourismType === 'TOUS'
+        ? sites
+        : sites.filter((item) => item.type === tourismType);
+    const filtered = scoped.filter((item) => {
       const matchesQuery =
         !normalizedQuery ||
-        `${activity.titre} ${activity.resume} ${activity.region}`
+        `${item.nom} ${item.region} ${item.summary} ${item.typeLabel}`
           .toLowerCase()
           .includes(normalizedQuery);
-      const matchesCategory = selectedCategories.includes(activity.category);
-      const matchesRegion =
-        region === 'Toutes' ? true : activity.region === region;
-      const matchesBudget = activity.prixXof <= budgetMax;
-      const matchesDuration = activity.dureeHeures <= dureeMax;
+      const matchesRegion = region === 'Toutes' ? true : item.region === region;
+      const matchesBudget = item.priceXof <= budgetMax;
+      const matchesDuration = item.durationHours <= durationMax;
 
-      return (
-        matchesQuery &&
-        matchesCategory &&
-        matchesRegion &&
-        matchesBudget &&
-        matchesDuration
-      );
+      return matchesQuery && matchesRegion && matchesBudget && matchesDuration;
     });
-  }, [query, selectedCategories, region, budgetMax, dureeMax]);
 
-  async function handleReserve(activityId: string) {
-    setReserveError('');
-    setReserveMessage('');
+    const sorted = [...filtered];
 
-    if (!sessionUserId) {
-      router.push('/login');
-      return;
+    switch (sortType) {
+      case 'PRIX_ASC':
+        sorted.sort((a, b) => a.priceXof - b.priceXof);
+        break;
+      case 'PRIX_DESC':
+        sorted.sort((a, b) => b.priceXof - a.priceXof);
+        break;
+      case 'DUREE_ASC':
+        sorted.sort((a, b) => a.durationHours - b.durationHours);
+        break;
+      case 'DUREE_DESC':
+        sorted.sort((a, b) => b.durationHours - a.durationHours);
+        break;
+      case 'NOM_ASC':
+        sorted.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+        break;
+      default:
+        break;
     }
 
-    setLoadingId(activityId);
+    return sorted;
+  }, [sites, tourismType, query, region, budgetMax, durationMax, sortType]);
 
-    try {
-      const activity = activities.find((item) => item.id === activityId);
+  function switchType(nextType: TourismFilterType) {
+    setTourismType(nextType);
+    setQuery('');
+    setRegion('Toutes');
+    setBudgetMax(80000);
+    setDurationMax(12);
+    setSortType('RECENT');
+  }
 
-      const response = await fetch('/api/tourist-actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actionType: 'TOURISM_ACTIVITY',
-          itemId: activityId,
-          itemLabel: activity?.titre ?? activityId,
-          amount: activity?.prixXof ?? 10000,
-          participants: 1,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        error?: string;
-        message?: string;
-        reference?: string;
-      };
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-
-        setReserveError(data.error ?? 'Réservation impossible.');
-        return;
-      }
-
-      setReserveMessage(
-        `${data.message ?? 'Réservation confirmée.'} Réf: ${data.reference ?? 'N/A'}`,
-      );
-    } catch {
-      setReserveError('Erreur réseau pendant la réservation.');
-    } finally {
-      setLoadingId(null);
-    }
+  function handleBook(itemId: string) {
+    router.push(`/tourisme/${itemId}`);
   }
 
   return (
@@ -271,64 +239,96 @@ export default function TourismePage() {
       <header className="space-y-2">
         <h1 className="text-4xl font-extrabold">Tourisme</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Recherchez et réservez vos activités dans les 4 catégories du tourisme
-          ivoirien.
+          Filtrez, triez et réservez des expériences touristiques en Côte
+          d’Ivoire.
         </p>
       </header>
 
+      <section className="rounded-2xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => switchType('TOUS')}
+            className={
+              tourismType === 'TOUS'
+                ? 'rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white'
+                : 'rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15'
+            }
+          >
+            Tous
+          </button>
+          <button
+            onClick={() => switchType('CULTUREL')}
+            className={
+              tourismType === 'CULTUREL'
+                ? 'rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white'
+                : 'rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15'
+            }
+          >
+            Culturel
+          </button>
+          <button
+            onClick={() => switchType('BALNEAIRE')}
+            className={
+              tourismType === 'BALNEAIRE'
+                ? 'rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white'
+                : 'rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15'
+            }
+          >
+            Balnéaire
+          </button>
+          <button
+            onClick={() => switchType('ECOTOURISME')}
+            className={
+              tourismType === 'ECOTOURISME'
+                ? 'rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white'
+                : 'rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15'
+            }
+          >
+            Écotourisme
+          </button>
+          <button
+            onClick={() => switchType('URBAN')}
+            className={
+              tourismType === 'URBAN'
+                ? 'rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white'
+                : 'rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15'
+            }
+          >
+            Urban
+          </button>
+          <button
+            onClick={() => router.push('/login')}
+            className="ml-auto rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15"
+          >
+            Se connecter
+          </button>
+        </div>
+      </section>
+
       <section className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <aside className="space-y-5 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900">
+        <aside className="space-y-4 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Filtres
+          </h2>
+
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Recherche
-            </h2>
+            <label className="text-sm font-medium">Recherche</label>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Nom, région, activité..."
+              placeholder="Nom, région, description..."
               className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
             />
           </div>
 
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Catégories
-            </h2>
-            {(Object.keys(categoryMeta) as TourismCategory[]).map(
-              (category) => (
-                <label
-                  key={category}
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-black/10 p-3 dark:border-white/15"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCategories.includes(category)}
-                    onChange={() => toggleCategory(category)}
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="block text-sm font-semibold">
-                      {categoryMeta[category].label}
-                    </span>
-                    <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                      {categoryMeta[category].hint}
-                    </span>
-                  </span>
-                </label>
-              ),
-            )}
-          </div>
-
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Région
-            </h2>
+            <label className="text-sm font-medium">Région</label>
             <select
               value={region}
               onChange={(event) => setRegion(event.target.value)}
               className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
             >
-              {regions.map((item) => (
+              {availableRegions.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
@@ -337,13 +337,13 @@ export default function TourismePage() {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Budget max ({formatPrix(budgetMax)})
-            </h2>
+            <label className="text-sm font-medium">
+              Budget max ({formatXof(budgetMax)})
+            </label>
             <input
               type="range"
-              min={10000}
-              max={40000}
+              min={5000}
+              max={80000}
               step={1000}
               value={budgetMax}
               onChange={(event) => setBudgetMax(Number(event.target.value))}
@@ -352,87 +352,103 @@ export default function TourismePage() {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Durée max ({dureeMax}h)
-            </h2>
+            <label className="text-sm font-medium">
+              Durée max ({durationMax}h)
+            </label>
             <input
               type="range"
-              min={2}
+              min={1}
               max={12}
               step={1}
-              value={dureeMax}
-              onChange={(event) => setDureeMax(Number(event.target.value))}
+              value={durationMax}
+              onChange={(event) => setDurationMax(Number(event.target.value))}
               className="w-full"
             />
           </div>
 
-          <button
-            onClick={resetFilters}
-            className="w-full rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 dark:border-white/15 dark:hover:bg-white/5"
-          >
-            Réinitialiser les filtres
-          </button>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Tri</label>
+            <select
+              value={sortType}
+              onChange={(event) => setSortType(event.target.value as SortType)}
+              className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
+            >
+              <option value="RECENT">Plus récent</option>
+              <option value="PRIX_ASC">Prix croissant</option>
+              <option value="PRIX_DESC">Prix décroissant</option>
+              <option value="DUREE_ASC">Durée croissante</option>
+              <option value="DUREE_DESC">Durée décroissante</option>
+              <option value="NOM_ASC">Nom A-Z</option>
+            </select>
+          </div>
         </aside>
 
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
-            <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              {filteredActivities.length} activité(s) trouvée(s)
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Réservation instantanée (démo) avec redirection connexion si
-              nécessaire.
-            </p>
-          </div>
-
-          {reserveError ? (
-            <p className="text-sm text-red-600">{reserveError}</p>
+          {sitesError ? (
+            <p className="text-sm text-red-600">{sitesError}</p>
           ) : null}
-          {reserveMessage ? (
-            <p className="text-sm text-emerald-600">{reserveMessage}</p>
+          {loading ? (
+            <p className="text-sm text-zinc-500">Chargement des activités...</p>
           ) : null}
 
-          {filteredActivities.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-black/20 p-6 text-sm text-zinc-500 dark:border-white/20 dark:text-zinc-400">
-              Aucun résultat avec ces filtres. Ajustez votre recherche ou votre
-              budget.
-            </div>
-          ) : (
-            <section className="grid gap-4 md:grid-cols-2">
-              {filteredActivities.map((activity) => (
-                <article
-                  key={activity.id}
-                  className="space-y-3 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-lg font-semibold">{activity.titre}</h2>
-                    <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-600 dark:bg-orange-500/20 dark:text-orange-300">
-                      {categoryMeta[activity.category].label}
-                    </span>
-                  </div>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                    {activity.resume}
-                  </p>
-                  <div className="grid gap-2 text-sm text-zinc-600 dark:text-zinc-300 sm:grid-cols-3">
-                    <span>📍 {activity.region}</span>
-                    <span>⏱️ {activity.dureeHeures}h</span>
-                    <span className="font-semibold text-zinc-900 dark:text-white">
-                      {formatPrix(activity.prixXof)}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => void handleReserve(activity.id)}
-                    disabled={loadingId === activity.id}
-                    className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+          {!loading ? (
+            <>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                {filteredSites.length} activité(s) trouvée(s)
+              </p>
+              <section className="grid gap-4 md:grid-cols-2">
+                {filteredSites.map((item) => (
+                  <article
+                    key={item.id}
+                    className="space-y-3 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900"
                   >
-                    {loadingId === activity.id
-                      ? 'Réservation...'
-                      : 'Réserver cette activité'}
-                  </button>
-                </article>
-              ))}
-            </section>
-          )}
+                    {item.photoUrl ? (
+                      <div className="relative h-40 w-full overflow-hidden rounded-xl">
+                        <Image
+                          src={item.photoUrl}
+                          alt={item.nom}
+                          fill
+                          unoptimized
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-40 w-full items-center justify-center rounded-xl bg-zinc-100 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                        Aucune image
+                      </div>
+                    )}
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="text-lg font-semibold">{item.nom}</h2>
+                      <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold dark:bg-zinc-800">
+                        {item.typeLabel}
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                      📍 {item.region}
+                    </p>
+                    <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-300">
+                      {item.summary}
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                      Durée {item.durationHours}h
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold">
+                        {formatXof(item.priceXof)}
+                      </p>
+                      <button
+                        onClick={() => handleBook(item.id)}
+                        className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                      >
+                        Réserver cette activité
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            </>
+          ) : null}
         </div>
       </section>
     </main>

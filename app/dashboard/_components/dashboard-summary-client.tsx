@@ -9,6 +9,7 @@ type Role =
   | 'ORGANIZER'
   | 'ACCOMMODATION_COMPANY'
   | 'VEHICLE_RENTAL_COMPANY'
+  | 'RESTAURANT'
   | 'ADMIN';
 
 type DashboardSummaryClientProps = {
@@ -106,6 +107,14 @@ export default function DashboardSummaryClient({
       return [
         { label: 'Véhicules', value: data.vehicules ?? 0 },
         { label: 'Disponibles', value: data.vehiculesDisponibles ?? 0 },
+      ];
+    }
+
+    if (role === 'RESTAURANT') {
+      return [
+        { label: 'Plats', value: data.plats ?? 0 },
+        { label: 'Disponibles', value: data.platsDisponibles ?? 0 },
+        { label: 'Commandes', value: data.commandes ?? 0 },
       ];
     }
 
