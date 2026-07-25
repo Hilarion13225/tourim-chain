@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
-type ServiceType = 'HEBERGEMENT' | 'VEHICULE';
+type ServiceType = 'HEBERGEMENT' | 'VEHICULE' | 'AUTRE';
 
 type Accommodation = {
   id: string;
@@ -56,6 +56,11 @@ function formatXof(value: number) {
 
 export default function ReservationPage() {
   const router = useRouter();
+  const yangoAppStoreUrl =
+    'https://apps.apple.com/us/search?term=Yango%20taxi%20food%20delivery';
+  const yangoPlayStoreUrl =
+    'https://play.google.com/store/search?q=Yango%20taxi%20food%20delivery&c=apps';
+
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [accommodationsError, setAccommodationsError] = useState('');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -242,7 +247,7 @@ export default function ReservationPage() {
         <h1 className="text-4xl font-extrabold">Reservation</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
           Filtrez et réservez votre hébergement ou votre véhicule en Côte
-          d’Ivoire.
+          d’Ivoire, ou accédez à d’autres services utiles.
         </p>
       </header>
 
@@ -269,6 +274,16 @@ export default function ReservationPage() {
             Location de véhicule
           </button>
           <button
+            onClick={() => switchService('AUTRE')}
+            className={
+              serviceType === 'AUTRE'
+                ? 'rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white'
+                : 'rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15'
+            }
+          >
+            Autre
+          </button>
+          <button
             onClick={() => router.push('/login')}
             className="ml-auto rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15"
           >
@@ -279,108 +294,127 @@ export default function ReservationPage() {
 
       <section className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-4 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            Filtres
-          </h2>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Recherche</label>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={
-                serviceType === 'HEBERGEMENT'
-                  ? 'Nom, type, ville...'
-                  : 'Modèle, type, ville...'
-              }
-              className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Ville</label>
-            <select
-              value={ville}
-              onChange={(event) => setVille(event.target.value)}
-              className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            >
-              {(serviceType === 'HEBERGEMENT'
-                ? accommodationCities
-                : vehicleCities
-              ).map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Prix max ({formatXof(prixMax)})
-            </label>
-            <input
-              type="range"
-              min={20000}
-              max={serviceType === 'HEBERGEMENT' ? 80000 : 70000}
-              step={1000}
-              value={prixMax}
-              onChange={(event) => setPrixMax(Number(event.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          {serviceType === 'HEBERGEMENT' ? (
+          {serviceType === 'AUTRE' ? (
             <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Note minimum ({noteMin}/10)
-                </label>
-                <input
-                  type="range"
-                  min={7}
-                  max={10}
-                  step={0.1}
-                  value={noteMin}
-                  onChange={(event) => setNoteMin(Number(event.target.value))}
-                  className="w-full"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={petitDejOnly}
-                  onChange={(event) => setPetitDejOnly(event.target.checked)}
-                />
-                Petit déjeuner inclus
-              </label>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Application utile
+              </h2>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                Yango Côte d’Ivoire : taxi, food et delivery.
+              </p>
             </>
           ) : (
             <>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Filtres
+              </h2>
+
               <div className="space-y-2">
-                <label className="text-sm font-medium">Transmission</label>
-                <select
-                  value={transmission}
-                  onChange={(event) =>
-                    setTransmission(
-                      event.target.value as 'Toutes' | Vehicle['transmission'],
-                    )
+                <label className="text-sm font-medium">Recherche</label>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={
+                    serviceType === 'HEBERGEMENT'
+                      ? 'Nom, type, ville...'
+                      : 'Modèle, type, ville...'
                   }
                   className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Ville</label>
+                <select
+                  value={ville}
+                  onChange={(event) => setVille(event.target.value)}
+                  className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
                 >
-                  <option value="Toutes">Toutes</option>
-                  <option value="Manuelle">Manuelle</option>
-                  <option value="Automatique">Automatique</option>
+                  {(serviceType === 'HEBERGEMENT'
+                    ? accommodationCities
+                    : vehicleCities
+                  ).map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm">
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Prix max ({formatXof(prixMax)})
+                </label>
                 <input
-                  type="checkbox"
-                  checked={climOnly}
-                  onChange={(event) => setClimOnly(event.target.checked)}
+                  type="range"
+                  min={20000}
+                  max={serviceType === 'HEBERGEMENT' ? 80000 : 70000}
+                  step={1000}
+                  value={prixMax}
+                  onChange={(event) => setPrixMax(Number(event.target.value))}
+                  className="w-full"
                 />
-                Climatisation uniquement
-              </label>
+              </div>
+
+              {serviceType === 'HEBERGEMENT' ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Note minimum ({noteMin}/10)
+                    </label>
+                    <input
+                      type="range"
+                      min={7}
+                      max={10}
+                      step={0.1}
+                      value={noteMin}
+                      onChange={(event) =>
+                        setNoteMin(Number(event.target.value))
+                      }
+                      className="w-full"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={petitDejOnly}
+                      onChange={(event) =>
+                        setPetitDejOnly(event.target.checked)
+                      }
+                    />
+                    Petit déjeuner inclus
+                  </label>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Transmission</label>
+                    <select
+                      value={transmission}
+                      onChange={(event) =>
+                        setTransmission(
+                          event.target.value as
+                            | 'Toutes'
+                            | Vehicle['transmission'],
+                        )
+                      }
+                      className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
+                    >
+                      <option value="Toutes">Toutes</option>
+                      <option value="Manuelle">Manuelle</option>
+                      <option value="Automatique">Automatique</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={climOnly}
+                      onChange={(event) => setClimOnly(event.target.checked)}
+                    />
+                    Climatisation uniquement
+                  </label>
+                </>
+              )}
             </>
           )}
         </aside>
@@ -450,7 +484,7 @@ export default function ReservationPage() {
                 ))}
               </section>
             </>
-          ) : (
+          ) : serviceType === 'VEHICULE' ? (
             <>
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
                 {filteredVehicles.length} véhicule(s) trouvé(s)
@@ -506,6 +540,90 @@ export default function ReservationPage() {
                     </div>
                   </article>
                 ))}
+              </section>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                Application recommandée pour vos trajets et livraisons.
+              </p>
+              <section>
+                <article className="space-y-4 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="relative h-24 w-24 overflow-hidden rounded-2xl border border-black/10 dark:border-white/15">
+                      <Image
+                        src="/yango-app.svg"
+                        alt="Yango Côte d’Ivoire"
+                        fill
+                        sizes="96px"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-semibold">Yango Côte d’Ivoire</h2>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                        Yango Taxi, Food et Delivery : déplacez-vous, commandez vos repas et planifiez vos livraisons depuis une seule application.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Services disponibles</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>• Taxi : course immédiate ou programmée.</li>
+                        <li>• Food : commande de repas depuis des restaurants partenaires.</li>
+                        <li>• Delivery : envoi et réception de colis en ville.</li>
+                      </ul>
+                    </section>
+
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Pourquoi l’utiliser en voyage ?</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>• Gain de temps pour vos déplacements urbains.</li>
+                        <li>• Solution pratique pour les repas et courses rapides.</li>
+                        <li>• Interface simple, utile pour touristes et résidents.</li>
+                      </ul>
+                    </section>
+
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Comment ça marche ?</h3>
+                      <ol className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>1. Installez l’app depuis App Store ou Play Store.</li>
+                        <li>2. Activez la localisation et choisissez le service (Taxi/Food/Delivery).</li>
+                        <li>3. Confirmez votre demande et suivez la progression en temps réel.</li>
+                      </ol>
+                    </section>
+
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Conseils pratiques</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>• Vérifiez les détails de la course/commande avant validation.</li>
+                        <li>• Utilisez les points de repère (hôtel, monument, quartier) pour l’adresse.</li>
+                        <li>• Les options de paiement dépendent de la zone et de la disponibilité locale.</li>
+                      </ul>
+                    </section>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <a
+                      href={yangoAppStoreUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
+                    >
+                      Télécharger sur App Store
+                    </a>
+                    <a
+                      href={yangoPlayStoreUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15"
+                    >
+                      Télécharger sur Play Store
+                    </a>
+                  </div>
+                </article>
               </section>
             </>
           )}

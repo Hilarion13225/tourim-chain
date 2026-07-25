@@ -115,13 +115,15 @@ export default async function DashboardLayout({
       <aside className="h-fit rounded-2xl border border-black/10 bg-white p-4 shadow-sm dark:border-white/15 dark:bg-zinc-900 lg:sticky lg:top-6">
         <div className="mb-4 border-b border-black/10 pb-4 dark:border-white/15">
           <p className="text-lg font-bold">
-            <span>tourisme</span>
+            <span>Tourisme</span>
             <span className="ml-1 text-orange-500">Ci</span>
           </p>
           <p className="text-xs uppercase tracking-wide text-zinc-500">
             Espace connecté
           </p>
-          <p className="mt-1 break-all text-sm font-semibold">{sessionUser.email}</p>
+          <p className="mt-1 break-all text-sm font-semibold">
+            {sessionUser.email}
+          </p>
           <p className="text-xs text-zinc-500">Rôle: {sessionUser.role}</p>
         </div>
 

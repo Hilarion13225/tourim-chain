@@ -282,9 +282,7 @@ export default async function Home() {
       subtitle: 'Histoire & arts',
       tag: `${formatCompact(
         topSites.filter((site) =>
-          ['CULTURE', 'HERITAGE', 'RELIGIOUS'].includes(
-            site.categorieTourisme,
-          ),
+          ['CULTURE', 'HERITAGE', 'RELIGIOUS'].includes(site.categorieTourisme),
         ).length,
       )} site(s)`,
       image: '/envies/culturel.svg',
@@ -334,7 +332,7 @@ export default async function Home() {
               Votre passerelle vers
               <br />
               <span className="bg-gradient-to-r from-orange-400 via-yellow-300 to-green-400 bg-clip-text text-transparent">
-                le tourisme ivoirien
+                le Tourisme ivoirien
               </span>
             </h1>
 

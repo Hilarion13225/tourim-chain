@@ -38,11 +38,8 @@ export default async function RootLayout({
             <Link href="/" className="flex items-center gap-3">
               <div>
                 <p className="text-2xl font-extrabold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
-                  <span>tourisme</span>
+                  <span>Tourisme</span>
                   <span className="ml-1 text-orange-500">Ci</span>
-                  <span className="ml-2 hidden text-base font-semibold text-zinc-500 dark:text-zinc-400 sm:inline sm:text-xl">
-                    séjours
-                  </span>
                 </p>
               </div>
             </Link>
@@ -123,7 +120,7 @@ export default async function RootLayout({
           <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:grid-cols-4 lg:px-10">
             <div className="space-y-3 lg:col-span-2">
               <p className="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                <span>tourisme</span>
+                <span>Tourisme</span>
                 <span className="ml-1 text-orange-500">Ci</span>
               </p>
               <p className="max-w-xl text-sm text-zinc-600 dark:text-zinc-300">
@@ -153,10 +150,7 @@ export default async function RootLayout({
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="/restauration"
-                    className="hover:text-orange-500"
-                  >
+                  <Link href="/restauration" className="hover:text-orange-500">
                     Restauration
                   </Link>
                 </li>
@@ -188,7 +182,7 @@ export default async function RootLayout({
           </div>
 
           <div className="border-t border-zinc-200 px-4 py-4 text-center text-xs text-zinc-500 dark:border-white/10 dark:text-zinc-400 sm:px-6 lg:px-10">
-            © {new Date().getFullYear()} tourismeCi — Tous droits réservés.
+            © {new Date().getFullYear()} TourismeCi — Tous droits réservés.
           </div>
         </footer>
       </body>

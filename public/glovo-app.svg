@@ -1,0 +1,6 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="8" width="496" height="496" rx="96" fill="#F5C24B"/>
+  <text x="256" y="292" text-anchor="middle" fill="#06A39C" font-family="Arial, Helvetica, sans-serif" font-size="110" font-weight="700">Glovo</text>
+  <circle cx="402" cy="170" r="22" stroke="#06A39C" stroke-width="12" fill="none"/>
+  <circle cx="402" cy="170" r="5" fill="#06A39C"/>
+</svg>

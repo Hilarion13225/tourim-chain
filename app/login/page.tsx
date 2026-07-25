@@ -3,6 +3,30 @@
 import { FormEvent, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+const tourismLeisureByType = [
+  {
+    type: 'Balnéaire',
+    loisirs: ['Plage', 'Baignade', 'Coucher de soleil', 'Sports nautiques'],
+  },
+  {
+    type: 'Culturel',
+    loisirs: [
+      'Musées',
+      'Sites historiques',
+      'Festivals traditionnels',
+      'Artisanat local',
+    ],
+  },
+  {
+    type: 'Nature & Écotourisme',
+    loisirs: ['Randonnée', 'Parcs naturels', 'Observation de la faune', 'Cascade'],
+  },
+  {
+    type: 'Aventure & Sportif',
+    loisirs: ['Tyrolienne', 'Quad', 'Escalade', 'Sorties sportives'],
+  },
+] as const;
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -13,9 +37,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('TOURIST');
+  const [touristAge, setTouristAge] = useState('');
+  const [touristLeisures, setTouristLeisures] = useState<string[]>([]);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  function toggleTouristLeisure(value: string) {
+    setTouristLeisures((previous) =>
+      previous.includes(value)
+        ? previous.filter((item) => item !== value)
+        : [...previous, value],
+    );
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,11 +62,38 @@ export default function LoginPage() {
       const payload =
         mode === 'login'
           ? { email, password }
-          : { nom, email, password, phone: telephone, role };
+          : {
+              nom,
+              email,
+              password,
+              phone: telephone,
+              role,
+              age: role === 'TOURIST' ? Number(touristAge) : undefined,
+              loisirs:
+                role === 'TOURIST'
+                  ? touristLeisures.join(', ')
+                  : undefined,
+            };
 
       if (mode === 'register' && !acceptTerms) {
         setError('Veuillez accepter les conditions pour continuer.');
         return;
+      }
+
+      if (mode === 'register' && role === 'TOURIST') {
+        const age = Number(touristAge);
+
+        if (!touristAge || Number.isNaN(age) || age < 10 || age > 120) {
+          setError('Veuillez renseigner un âge valide (10 à 120 ans).');
+          return;
+        }
+
+        if (touristLeisures.length === 0) {
+          setError(
+            'Sélectionnez au moins un loisir selon les 4 types de tourisme.',
+          );
+          return;
+        }
       }
 
       const response = await fetch(endpoint, {
@@ -139,7 +200,13 @@ export default function LoginPage() {
                 <select
                   className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none dark:border-white/15 dark:bg-zinc-900"
                   value={role}
-                  onChange={(event) => setRole(event.target.value)}
+                  onChange={(event) => {
+                    setRole(event.target.value);
+                    if (event.target.value !== 'TOURIST') {
+                      setTouristAge('');
+                      setTouristLeisures([]);
+                    }
+                  }}
                 >
                   <option value="TOURIST">Touriste</option>
                   <option value="GUIDE">Guide</option>
@@ -154,6 +221,70 @@ export default function LoginPage() {
                   <option value="RESTAURANT">Restaurant</option>
                   <option value="ADMIN">Admin</option>
                 </select>
+              ) : null}
+
+              {mode === 'register' && role === 'TOURIST' ? (
+                <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-white/15 dark:bg-zinc-900">
+                  <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                    Questions profil touriste
+                  </p>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                      Âge
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none dark:border-white/15 dark:bg-zinc-900"
+                      type="number"
+                      min={10}
+                      max={120}
+                      placeholder="Ex: 28"
+                      value={touristAge}
+                      onChange={(event) => setTouristAge(event.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                      Loisirs selon les 4 types de tourisme ivoirien
+                    </label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {tourismLeisureByType.map((group) => (
+                        <fieldset
+                          key={group.type}
+                          className="rounded-xl border border-zinc-200 p-3 dark:border-white/15"
+                        >
+                          <legend className="px-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                            {group.type}
+                          </legend>
+                          <div className="mt-2 space-y-2">
+                            {group.loisirs.map((loisir) => {
+                              const value = `${group.type}: ${loisir}`;
+
+                              return (
+                                <label
+                                  key={value}
+                                  className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={touristLeisures.includes(value)}
+                                    onChange={() => toggleTouristLeisure(value)}
+                                  />
+                                  <span>{loisir}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {touristLeisures.length} loisir(s) sélectionné(s)
+                    </p>
+                  </div>
+                </div>
               ) : null}
 
               <input
@@ -271,9 +402,6 @@ export default function LoginPage() {
               </div>
               +500 professionnels inscrits ce mois-ci
             </div>
-            <button className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-orange-500/35">
-              Besoin d’aide ?
-            </button>
           </div>
         </aside>
       </section>

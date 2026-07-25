@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
-type FoodView = 'RESTAURANTS' | 'PLATS';
+type FoodView = 'RESTAURANTS' | 'PLATS' | 'AUTRE';
 type CuisineType = string;
 
 type Restaurant = {
@@ -56,6 +56,10 @@ function formatMoney(value: number) {
 
 export default function RestaurationPage() {
   const router = useRouter();
+  const glovoAppStoreUrl =
+    'https://apps.apple.com/fr/app/glovo-food-delivery-and-more/id951812684';
+  const glovoPlayStoreUrl =
+    'https://play.google.com/store/apps/details?id=com.glovo';
 
   const [view, setView] = useState<FoodView>('RESTAURANTS');
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -230,7 +234,8 @@ export default function RestaurationPage() {
       <header className="space-y-2">
         <h1 className="text-4xl font-extrabold">Restauration</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Filtrez et réservez des restaurants ou commandez des plats ivoiriens.
+          Filtrez et réservez des restaurants, commandez des plats ivoiriens ou
+          découvrez une application utile.
         </p>
       </header>
 
@@ -256,112 +261,135 @@ export default function RestaurationPage() {
           >
             Plats
           </button>
+          <button
+            onClick={() => switchView('AUTRE')}
+            className={
+              view === 'AUTRE'
+                ? 'rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white'
+                : 'rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15'
+            }
+          >
+            Autre
+          </button>
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-4 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            Filtres nourriture
-          </h2>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Recherche</label>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Plat, restaurant, ville..."
-              className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Ville</label>
-            <select
-              value={ville}
-              onChange={(event) => setVille(event.target.value)}
-              className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            >
-              {availableCities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Cuisine</label>
-            <select
-              value={cuisine}
-              onChange={(event) =>
-                setCuisine(event.target.value as 'Toutes' | CuisineType)
-              }
-              className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
-            >
-              {availableCuisines.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Budget max ({formatMoney(budgetMax)})
-            </label>
-            <input
-              type="range"
-              min={3000}
-              max={view === 'RESTAURANTS' ? 20000 : 10000}
-              step={500}
-              value={budgetMax}
-              onChange={(event) => setBudgetMax(Number(event.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          {view === 'RESTAURANTS' ? (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Note minimum ({noteMin}/10)
-              </label>
-              <input
-                type="range"
-                min={7}
-                max={10}
-                step={0.1}
-                value={noteMin}
-                onChange={(event) => setNoteMin(Number(event.target.value))}
-                className="w-full"
-              />
-            </div>
+          {view === 'AUTRE' ? (
+            <>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Application utile
+              </h2>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                Glovo Côte d’Ivoire : commandez repas et courses rapidement.
+              </p>
+            </>
           ) : (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Épicé max ({spicyMax}/5)
-              </label>
-              <input
-                type="range"
-                min={1}
-                max={5}
-                step={1}
-                value={spicyMax}
-                onChange={(event) => setSpicyMax(Number(event.target.value))}
-                className="w-full"
-              />
-            </div>
-          )}
+            <>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Filtres nourriture
+              </h2>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={livraisonOnly}
-              onChange={(event) => setLivraisonOnly(event.target.checked)}
-            />
-            Livraison uniquement
-          </label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Recherche</label>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Plat, restaurant, ville..."
+                  className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Ville</label>
+                <select
+                  value={ville}
+                  onChange={(event) => setVille(event.target.value)}
+                  className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
+                >
+                  {availableCities.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cuisine</label>
+                <select
+                  value={cuisine}
+                  onChange={(event) =>
+                    setCuisine(event.target.value as 'Toutes' | CuisineType)
+                  }
+                  className="w-full rounded-xl border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/15"
+                >
+                  {availableCuisines.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Budget max ({formatMoney(budgetMax)})
+                </label>
+                <input
+                  type="range"
+                  min={3000}
+                  max={view === 'RESTAURANTS' ? 20000 : 10000}
+                  step={500}
+                  value={budgetMax}
+                  onChange={(event) => setBudgetMax(Number(event.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {view === 'RESTAURANTS' ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Note minimum ({noteMin}/10)
+                  </label>
+                  <input
+                    type="range"
+                    min={7}
+                    max={10}
+                    step={0.1}
+                    value={noteMin}
+                    onChange={(event) => setNoteMin(Number(event.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Épicé max ({spicyMax}/5)
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={5}
+                    step={1}
+                    value={spicyMax}
+                    onChange={(event) => setSpicyMax(Number(event.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              )}
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={livraisonOnly}
+                  onChange={(event) => setLivraisonOnly(event.target.checked)}
+                />
+                Livraison uniquement
+              </label>
+            </>
+          )}
         </aside>
 
         <div className="space-y-4">
@@ -403,7 +431,7 @@ export default function RestaurationPage() {
                 ))}
               </section>
             </>
-          ) : (
+          ) : view === 'PLATS' ? (
             <>
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
                 {filteredDishes.length} plat(s) trouvé(s)
@@ -454,6 +482,90 @@ export default function RestaurationPage() {
                     </div>
                   </article>
                 ))}
+              </section>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                Application recommandée pour les commandes de repas et livraisons.
+              </p>
+              <section>
+                <article className="space-y-4 rounded-2xl border border-black/10 bg-white p-5 dark:border-white/15 dark:bg-zinc-900">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="relative h-24 w-24 overflow-hidden rounded-2xl border border-black/10 dark:border-white/15">
+                      <Image
+                        src="/glovo-app.svg"
+                        alt="Glovo Côte d’Ivoire"
+                        fill
+                        sizes="96px"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-semibold">Glovo Côte d’Ivoire</h2>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                        Commandez vos repas et faites-vous livrer rapidement depuis les restaurants partenaires autour de vous.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Services disponibles</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>• Livraison de repas depuis des restaurants partenaires.</li>
+                        <li>• Livraison de courses et produits du quotidien.</li>
+                        <li>• Suivi de commande en temps réel depuis l’application.</li>
+                      </ul>
+                    </section>
+
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Pourquoi c’est utile ?</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>• Pratique quand vous êtes en déplacement ou à l’hôtel.</li>
+                        <li>• Gain de temps pour commander sans vous déplacer.</li>
+                        <li>• Accès rapide à plusieurs restaurants en une seule app.</li>
+                      </ul>
+                    </section>
+
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Comment l’utiliser ?</h3>
+                      <ol className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>1. Téléchargez Glovo depuis App Store ou Play Store.</li>
+                        <li>2. Activez votre localisation et choisissez un restaurant.</li>
+                        <li>3. Validez la commande et suivez la livraison.</li>
+                      </ol>
+                    </section>
+
+                    <section className="rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/15 dark:bg-zinc-950">
+                      <h3 className="text-sm font-semibold">Conseils pratiques</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        <li>• Vérifiez l’adresse de livraison avant de confirmer.</li>
+                        <li>• Consultez le délai estimé pour choisir le bon créneau.</li>
+                        <li>• Les modes de paiement peuvent varier selon la zone.</li>
+                      </ul>
+                    </section>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <a
+                      href={glovoAppStoreUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
+                    >
+                      Télécharger sur App Store
+                    </a>
+                    <a
+                      href={glovoPlayStoreUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-black/10 px-4 py-2 text-sm font-semibold dark:border-white/15"
+                    >
+                      Télécharger sur Play Store
+                    </a>
+                  </div>
+                </article>
               </section>
             </>
           )}
