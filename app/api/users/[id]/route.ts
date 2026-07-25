@@ -196,8 +196,8 @@ export async function PATCH(
       where: { id },
       data: {
         ...(nom ? { nom } : {}),
-        ...(role ? { role } : {}),
-        ...(status ? { status } : {}),
+        ...(role ? { role: role as UserRole } : {}),
+        ...(status ? { status: status as UserStatus } : {}),
         ...(verified !== undefined ? { verified } : {}),
       },
       select: {

@@ -178,8 +178,8 @@ export async function PATCH(request: NextRequest) {
     const booking = await prisma.booking.update({
       where: { id },
       data: {
-        ...(statut ? { statut } : {}),
-        ...(paymentStatus ? { paymentStatus } : {}),
+        ...(statut ? { statut: statut as BookingStatus } : {}),
+        ...(paymentStatus ? { paymentStatus: paymentStatus as PaymentStatus } : {}),
       },
     });
 

@@ -95,8 +95,8 @@ export async function PATCH(
     const order = await prisma.restaurantOrder.update({
       where: { id },
       data: {
-        ...(status ? { status } : {}),
-        ...(paymentStatus ? { paymentStatus } : {}),
+        ...(status ? { status: status as OrderStatus } : {}),
+        ...(paymentStatus ? { paymentStatus: paymentStatus as PaymentStatus } : {}),
       },
       include: {
         dish: {

@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
             },
           }
         : {}),
-      ...(status ? { status } : {}),
+      ...(status ? { status: status as EventStatus } : {}),
     };
 
     let event;
