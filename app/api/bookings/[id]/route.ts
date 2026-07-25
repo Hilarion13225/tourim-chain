@@ -83,8 +83,8 @@ export async function PATCH(
         ...(date ? { date: new Date(date) } : {}),
         ...(participants !== undefined ? { participants } : {}),
         ...(totalAmount !== undefined ? { totalAmount } : {}),
-        ...(statut ? { statut } : {}),
-        ...(paymentStatus ? { paymentStatus } : {}),
+        ...(statut ? { statut: statut as BookingStatus } : {}),
+        ...(paymentStatus ? { paymentStatus: paymentStatus as PaymentStatus } : {}),
         ...(notes !== undefined ? { notes } : {}),
       },
     });
